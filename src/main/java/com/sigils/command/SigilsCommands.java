@@ -1,19 +1,18 @@
 package com.sigils.command;
 
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
-import com.sigils.registry.ElementDefinition;
-import com.sigils.registry.EffectHandlerType;
-import com.sigils.registry.ReactionRuleDefinition;
-import com.sigils.registry.SigilsRegistries;
+import com.sigils.core.spell.CompiledSpell;
+import com.sigils.registry.*;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.core.Registry;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.permissions.Permissions;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import com.mojang.brigadier.arguments.FloatArgumentType;
-import java.util.ArrayList;
 import java.util.List;
 import com.sigils.core.element.ElementalMixture;
 import com.sigils.core.reaction.PhenomenonResolver;
@@ -45,6 +44,12 @@ public final class SigilsCommands {
                                                 .then(Commands.argument("earth", FloatArgumentType.floatArg(0f))
                                                         .then(Commands.argument("air", FloatArgumentType.floatArg(0f))
                                                                 .executes(SigilsCommands::simulate))))))
+                        .then(Commands.literal("cast")
+                                .then(Commands.argument("spell", StringArgumentType.greedyString())
+                                        .suggests((c, b) -> SharedSuggestionProvider.suggest(
+                                                c.getSource().registryAccess().lookupOrThrow(SigilsRegistries.SPELL)
+                                                        .keySet().stream().map(Identifier::toString), b))
+                                        .executes(SigilsCommands::cast)))
         );
     }
 
@@ -92,6 +97,7 @@ public final class SigilsCommands {
         source.sendSuccess(() -> Component.literal(total + " handler(s) from code"), false);
         return total;
     }
+
     private static int simulate(CommandContext<CommandSourceStack> ctx) {
         float fire = FloatArgumentType.getFloat(ctx, "fire");
         float water = FloatArgumentType.getFloat(ctx, "water");
@@ -104,16 +110,8 @@ public final class SigilsCommands {
                 .plus(ElementalMixture.of("sigils:earth", earth))
                 .plus(ElementalMixture.of("sigils:air", air));
 
-        // Load every reaction rule from the datapack registry into core types.
-        Registry<ReactionRuleDefinition> registry =
-                ctx.getSource().registryAccess().lookupOrThrow(SigilsRegistries.REACTION);
-        List<ReactionRule> rules = new ArrayList<>();
-        for (Identifier id : registry.keySet()) {
-            ReactionRuleDefinition def = registry.getValue(id);
-            if (def != null) {
-                rules.add(def.toCore(id));
-            }
-        }
+        //Loads data pack rules from SigilsReactions script.
+        List<ReactionRule> rules = SigilsReactions.load(ctx.getSource().registryAccess());
 
         Resolution result = new PhenomenonResolver().resolve(mixture, rules);
 
@@ -126,6 +124,42 @@ public final class SigilsCommands {
                             "  phenomenon " + phenomenon + " x" + String.format("%.2f", strength)), false));
         }
         ctx.getSource().sendSuccess(() -> Component.literal("  residual " + result.residual()), false);
+        return 1;
+    }
+
+    private static int cast(CommandContext<CommandSourceStack> ctx) {
+        CommandSourceStack source = ctx.getSource();
+
+        String arg = StringArgumentType.getString(ctx, "spell");
+        Identifier spellId = Identifier.tryParse(arg);
+        if (spellId == null) {
+            source.sendFailure(Component.literal("Not a valid spell id: " + arg));
+            return 0;
+        }
+
+        Registry<SpellDefinition> spells = source.registryAccess().lookupOrThrow(SigilsRegistries.SPELL);
+        SpellDefinition def = spells.getValue(spellId);
+        if (def == null) {
+            source.sendFailure(Component.literal("No spell registered as " + spellId));
+            return 0;
+        }
+
+        CompiledSpell spell = def.toCompiled();
+        List<ReactionRule> rules = SigilsReactions.load(source.registryAccess());
+        Resolution result = new PhenomenonResolver().resolve(spell.mixture(), rules);
+
+        source.sendSuccess(() -> Component.literal("Casting " + spellId), false);
+        source.sendSuccess(() -> Component.literal("  mixture " + spell.mixture()), false);
+        if (result.isInert()) {
+            source.sendSuccess(() -> Component.literal("  (no reaction)"), false);
+        } else {
+            result.phenomena().forEach((phenomenon, strength) ->
+                    source.sendSuccess(() -> Component.literal(
+                            "  phenomenon " + phenomenon + " x" + String.format("%.2f", strength)), false));
+        }
+        source.sendSuccess(() -> Component.literal("  residual " + result.residual()), false);
+        source.sendSuccess(() -> Component.literal(
+                "  delivery " + spell.delivery().shapeId() + " → " + spell.delivery().targetId()), false);
         return 1;
     }
 }

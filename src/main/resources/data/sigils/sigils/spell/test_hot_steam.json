@@ -1,0 +1,5 @@
+{
+  "mixture": { "sigils:fire": 1.5, "sigils:water": 0.5 },
+  "delivery": { "shape": "sigils:burst", "target": "sigils:looked_at_block" },
+  "fidelity": 1.0
+}

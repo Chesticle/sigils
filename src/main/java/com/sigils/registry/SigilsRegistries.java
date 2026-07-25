@@ -57,6 +57,9 @@ public final class SigilsRegistries {
     public static final ResourceKey<Registry<ReactionRuleDefinition>> REACTION =
             ResourceKey.createRegistryKey(Sigils.id("reaction"));
 
+    public static final ResourceKey<Registry<SpellDefinition>> SPELL =
+            ResourceKey.createRegistryKey(Sigils.id("spell"));
+
     // ================================================================
     // Built-in registries — behaviour, from Java, at game start
     // ================================================================
@@ -97,6 +100,7 @@ public final class SigilsRegistries {
         event.register(EFFECT_HANDLER_REGISTRY);
     }
 
+
     private static void onNewDataPackRegistry(DataPackRegistryEvent.NewRegistry event) {
         event.dataPackRegistry(
                 ELEMENT,
@@ -105,5 +109,6 @@ public final class SigilsRegistries {
         );
         event.dataPackRegistry(PHENOMENON, PhenomenonDefinition.CODEC, PhenomenonDefinition.CODEC);
         event.dataPackRegistry(REACTION, ReactionRuleDefinition.CODEC, ReactionRuleDefinition.CODEC);
+        event.dataPackRegistry(SPELL, SpellDefinition.CODEC, SpellDefinition.CODEC);
     }
 }
