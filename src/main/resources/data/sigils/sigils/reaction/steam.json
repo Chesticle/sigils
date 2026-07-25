@@ -4,6 +4,6 @@
     { "element": "sigils:water", "consumption": 1.0 }
   ],
   "output": "sigils:steam",
-  "yield": 1.0,
+  "yield": 2.0,
   "priority": 10
 }

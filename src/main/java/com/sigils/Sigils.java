@@ -1,5 +1,6 @@
 package com.sigils;
 
+import com.sigils.cast.SigilsCastEvents;
 import com.sigils.core.SigilsCore;
 import com.sigils.registry.SigilsRegistries;
 import net.minecraft.resources.Identifier;
@@ -34,6 +35,8 @@ public final class Sigils {
         container.registerConfig(ModConfig.Type.COMMON, SigilsConfig.SPEC);
 
         LOGGER.info("Sigils loading — spell schema v{}", SigilsCore.SPELL_SCHEMA_VERSION);
+        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.register(SigilsCastEvents.class);
+        com.sigils.cast.SigilsEffects.bootstrap();
     }
 
     /**

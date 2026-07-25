@@ -2,6 +2,9 @@ package com.sigils.command;
 
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
+import com.sigils.cast.CastContext;
+import com.sigils.cast.SpellCaster;
+import com.sigils.cast.SpellCasting;
 import com.sigils.core.spell.CompiledSpell;
 import com.sigils.registry.*;
 import net.minecraft.commands.CommandSourceStack;
@@ -10,10 +13,15 @@ import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.core.Registry;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.permissions.Permissions;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import com.mojang.brigadier.arguments.FloatArgumentType;
 import java.util.List;
+import java.util.Optional;
+
 import com.sigils.core.element.ElementalMixture;
 import com.sigils.core.reaction.PhenomenonResolver;
 import com.sigils.core.reaction.ReactionRule;
@@ -144,22 +152,22 @@ public final class SigilsCommands {
             return 0;
         }
 
+        ServerLevel level = source.getLevel();
+        ServerPlayer caster = source.getEntity() instanceof ServerPlayer player ? player : null;
+        Vec3 origin = caster != null ? caster.getEyePosition() : source.getPosition();
+
+        // Begin a budget-guarded cast. Empty means this tick is already full.
+        Optional<CastContext> maybeCtx = SpellCasting.begin(level, caster, origin);
+        if (maybeCtx.isEmpty()) {
+            source.sendFailure(Component.literal("Spell budget for this tick is exhausted."));
+            return 0;
+        }
+
         CompiledSpell spell = def.toCompiled();
         List<ReactionRule> rules = SigilsReactions.load(source.registryAccess());
-        Resolution result = new PhenomenonResolver().resolve(spell.mixture(), rules);
+        SpellCaster.cast(maybeCtx.get(), spell, rules);
 
-        source.sendSuccess(() -> Component.literal("Casting " + spellId), false);
-        source.sendSuccess(() -> Component.literal("  mixture " + spell.mixture()), false);
-        if (result.isInert()) {
-            source.sendSuccess(() -> Component.literal("  (no reaction)"), false);
-        } else {
-            result.phenomena().forEach((phenomenon, strength) ->
-                    source.sendSuccess(() -> Component.literal(
-                            "  phenomenon " + phenomenon + " x" + String.format("%.2f", strength)), false));
-        }
-        source.sendSuccess(() -> Component.literal("  residual " + result.residual()), false);
-        source.sendSuccess(() -> Component.literal(
-                "  delivery " + spell.delivery().shapeId() + " → " + spell.delivery().targetId()), false);
+        source.sendSuccess(() -> Component.literal("Cast " + spellId), false);
         return 1;
     }
 }
