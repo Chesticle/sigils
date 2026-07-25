@@ -51,6 +51,12 @@ public final class SigilsRegistries {
     public static final ResourceKey<Registry<ElementDefinition>> ELEMENT =
             ResourceKey.createRegistryKey(Sigils.id("element"));
 
+    public static final ResourceKey<Registry<PhenomenonDefinition>> PHENOMENON =
+            ResourceKey.createRegistryKey(Sigils.id("phenomenon"));
+
+    public static final ResourceKey<Registry<ReactionRuleDefinition>> REACTION =
+            ResourceKey.createRegistryKey(Sigils.id("reaction"));
+
     // ================================================================
     // Built-in registries — behaviour, from Java, at game start
     // ================================================================
@@ -97,5 +103,7 @@ public final class SigilsRegistries {
                 ElementDefinition.CODEC,  // disk/server codec
                 ElementDefinition.CODEC   // network codec — clients need colours for particles
         );
+        event.dataPackRegistry(PHENOMENON, PhenomenonDefinition.CODEC, PhenomenonDefinition.CODEC);
+        event.dataPackRegistry(REACTION, ReactionRuleDefinition.CODEC, ReactionRuleDefinition.CODEC);
     }
 }
