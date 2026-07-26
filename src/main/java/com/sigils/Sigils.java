@@ -28,6 +28,7 @@ public final class Sigils {
     public Sigils(IEventBus modBus, ModContainer container) {
         // Mod bus: registration, setup, datagen. Fired per-mod during loading.
         SigilsRegistries.register(modBus);
+        com.sigils.particle.SigilsParticles.register(modBus);
 
         // Game bus: gameplay events. Fired during play.
         NeoForge.EVENT_BUS.addListener(com.sigils.command.SigilsCommands::onRegisterCommands);

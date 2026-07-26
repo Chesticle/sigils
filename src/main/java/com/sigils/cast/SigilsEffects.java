@@ -66,41 +66,25 @@ public final class SigilsEffects {
     // ---- effects --------------------------------------------------------------
 
     private static void steam(CastContext ctx, Vec3 at, float strength) {
-        ServerLevel level = ctx.level();
-        level.sendParticles(ParticleTypes.CLOUD, at.x, at.y + 0.5, at.z,
-                count(strength, 24, 120), 0.5, 0.4, 0.5, 0.02);
-        for (LivingEntity e : nearby(level, at, 1.5 * strength)) {
+        for (LivingEntity e : nearby(ctx.level(), at, 1.5 * strength)) {
             e.setRemainingFireTicks(0); // steam smothers open flame
         }
     }
 
     private static void combustion(CastContext ctx, Vec3 at, float strength) {
-        ServerLevel level = ctx.level();
-        level.sendParticles(ParticleTypes.FLAME, at.x, at.y + 0.3, at.z,
-                count(strength, 16, 80), 0.3, 0.3, 0.3, 0.03);
-        level.sendParticles(ParticleTypes.LARGE_SMOKE, at.x, at.y + 0.5, at.z,
-                count(strength, 6, 30), 0.3, 0.3, 0.3, 0.01);
-        for (LivingEntity e : nearby(level, at, 1.5 * strength)) {
+        for (LivingEntity e : nearby(ctx.level(), at, 1.5 * strength)) {
             e.setRemainingFireTicks((int) (strength * 40));
         }
     }
 
     private static void rawFire(CastContext ctx, Vec3 at, float strength) {
-        ServerLevel level = ctx.level();
-        level.sendParticles(ParticleTypes.FLAME, at.x, at.y + 0.2, at.z,
-                count(strength, 10, 60), 0.2, 0.2, 0.2, 0.02);
-        for (LivingEntity e : nearby(level, at, 1.0 * strength)) {
+        for (LivingEntity e : nearby(ctx.level(), at, 1.5 * strength)) {
             e.setRemainingFireTicks((int) (strength * 20));
         }
     }
 
     private static void rawWater(CastContext ctx, Vec3 at, float strength) {
-        ServerLevel level = ctx.level();
-        level.sendParticles(ParticleTypes.SPLASH, at.x, at.y + 0.3, at.z,
-                count(strength, 16, 80), 0.4, 0.2, 0.4, 0.1);
-        level.sendParticles(ParticleTypes.BUBBLE, at.x, at.y + 0.2, at.z,
-                count(strength, 8, 40), 0.3, 0.1, 0.3, 0.01);
-        for (LivingEntity e : nearby(level, at, 1.5 * strength)) {
+        for (LivingEntity e : nearby(ctx.level(), at, 1.5 * strength)) {
             e.setRemainingFireTicks(0);
         }
     }
