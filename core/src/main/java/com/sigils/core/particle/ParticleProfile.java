@@ -50,6 +50,36 @@ public record ParticleProfile(
         return acc.build();
     }
 
+    /**
+     * A copy roughened by instability (0..1). Higher instability raises
+     * turbulence and per-particle jitter and desaturates the colour toward its
+     * own luma, so a badly traced spell *looks* wrong before it *goes* wrong.
+     * {@code instability <= 0} returns this profile unchanged.
+     */
+    public ParticleProfile perturbed(float instability) {
+        float k = Math.clamp(instability, 0f, 1f);
+        if (k <= 0f) {
+            return this;
+        }
+        // Rec. 709 luma — the grey this colour desaturates toward.
+        float luma = 0.2126f * red + 0.7152f * green + 0.0722f * blue;
+        float desat = 0.6f * k;
+        return new ParticleProfile(
+                lerp(red, luma, desat), lerp(green, luma, desat), lerp(blue, luma, desat),
+                size, sizeJitter + 0.5f * k,
+                lifetime, lifetimeJitter + 0.4f * k,
+                speed, speedSpread + 0.5f * k,
+                gravity,
+                turbulence + 1.0f * k,
+                emissive,
+                density,
+                trailLength);
+    }
+
+    private static float lerp(float a, float b, float t) {
+        return a + (b - a) * t;
+    }
+
     private static ParticleProfile average(List<Weighted<ParticleProfile>> inputs) {
         Accumulator acc = new Accumulator();
         float share = 1f / inputs.size();

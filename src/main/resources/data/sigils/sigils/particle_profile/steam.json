@@ -1,0 +1,11 @@
+{
+  "color": "#E8F0F4",
+  "size": 0.26,
+  "lifetime": 24,
+  "speed": 0.04,
+  "speed_spread": 0.02,
+  "gravity": -0.03,
+  "turbulence": 0.15,
+  "emissive": 0.0,
+  "density": 1.2
+}

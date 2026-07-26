@@ -5,6 +5,9 @@ import com.mojang.brigadier.context.CommandContext;
 import com.sigils.cast.CastContext;
 import com.sigils.cast.SpellCaster;
 import com.sigils.cast.SpellCasting;
+import com.sigils.core.particle.ParticleProfile;
+import com.sigils.core.particle.ProfileLookup;
+import com.sigils.core.particle.SpellVisuals;
 import com.sigils.core.spell.CompiledSpell;
 import com.sigils.registry.*;
 import net.minecraft.commands.CommandSourceStack;
@@ -58,6 +61,12 @@ public final class SigilsCommands {
                                                 c.getSource().registryAccess().lookupOrThrow(SigilsRegistries.SPELL)
                                                         .keySet().stream().map(Identifier::toString), b))
                                         .executes(SigilsCommands::cast)))
+                        .then(Commands.literal("visualize")
+                                .then(Commands.argument("spell", StringArgumentType.greedyString())
+                                        .suggests((c, b) -> SharedSuggestionProvider.suggest(
+                                                c.getSource().registryAccess().lookupOrThrow(SigilsRegistries.SPELL)
+                                                        .keySet().stream().map(Identifier::toString), b))
+                                        .executes(SigilsCommands::visualize)))
         );
     }
 
@@ -169,5 +178,64 @@ public final class SigilsCommands {
 
         source.sendSuccess(() -> Component.literal("Cast " + spellId), false);
         return 1;
+    }
+
+    private static int visualize(CommandContext<CommandSourceStack> ctx) {
+        CommandSourceStack source = ctx.getSource();
+
+        String arg = StringArgumentType.getString(ctx, "spell");
+        Identifier spellId = Identifier.tryParse(arg);
+        if (spellId == null) {
+            source.sendFailure(Component.literal("Not a valid spell id: " + arg));
+            return 0;
+        }
+
+        Registry<SpellDefinition> spells = source.registryAccess().lookupOrThrow(SigilsRegistries.SPELL);
+        SpellDefinition def = spells.getValue(spellId);
+        if (def == null) {
+            source.sendFailure(Component.literal("No spell registered as " + spellId));
+            return 0;
+        }
+
+        CompiledSpell spell = def.toCompiled();
+        List<ReactionRule> rules = SigilsReactions.load(source.registryAccess());
+        Resolution resolution = new PhenomenonResolver().resolve(spell.mixture(), rules);
+
+        ProfileLookup lookup = SigilsProfiles.lookup(source.registryAccess());
+        Optional<ParticleProfile> blended = SpellVisuals.blend(resolution, lookup);
+        if (blended.isEmpty()) {
+            source.sendSuccess(() -> Component.literal("Visualize " + spellId + ": inert — no visual"), false);
+            return 1;
+        }
+
+        float instability = spell.baseInstability();
+        ParticleProfile profile = blended.get().perturbed(instability);
+
+        source.sendSuccess(() -> Component.literal("Visualize " + spellId
+                + "  (fidelity " + fmt(spell.fidelity())
+                + ", instability " + fmt(instability) + ")"), false);
+        source.sendSuccess(() -> Component.literal("  colour     " + toHex(profile)
+                + "   linear(" + fmt(profile.red()) + ", " + fmt(profile.green()) + ", " + fmt(profile.blue()) + ")"), false);
+        source.sendSuccess(() -> Component.literal("  motion     size " + fmt(profile.size())
+                + "  speed " + fmt(profile.speed()) + "  gravity " + fmt(profile.gravity())), false);
+        source.sendSuccess(() -> Component.literal("  character  turbulence " + fmt(profile.turbulence())
+                + "  emissive " + fmt(profile.emissive()) + "  density " + fmt(profile.density())), false);
+        return 1;
+    }
+
+    private static String fmt(float v) {
+        return String.format("%.3f", v);
+    }
+
+    /** Linear profile colour → sRGB hex, for a readable printout only. */
+    private static String toHex(ParticleProfile p) {
+        return String.format("#%02X%02X%02X", to8(p.red()), to8(p.green()), to8(p.blue()));
+    }
+
+    private static int to8(float linear) {
+        float s = linear <= 0.0031308f
+                ? linear * 12.92f
+                : 1.055f * (float) Math.pow(linear, 1f / 2.4f) - 0.055f;
+        return Math.clamp(Math.round(s * 255f), 0, 255);
     }
 }

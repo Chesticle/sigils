@@ -1,0 +1,11 @@
+{
+  "color": "#FF7A1A",
+  "size": 0.18,
+  "lifetime": 14,
+  "speed": 0.12,
+  "speed_spread": 0.05,
+  "gravity": -0.06,
+  "turbulence": 0.35,
+  "emissive": 1.0,
+  "density": 1.0
+}

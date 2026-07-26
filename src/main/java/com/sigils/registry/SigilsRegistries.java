@@ -60,6 +60,9 @@ public final class SigilsRegistries {
     public static final ResourceKey<Registry<SpellDefinition>> SPELL =
             ResourceKey.createRegistryKey(Sigils.id("spell"));
 
+    public static final ResourceKey<Registry<ParticleProfileDefinition>> PARTICLE_PROFILE =
+            ResourceKey.createRegistryKey(Sigils.id("particle_profile"));
+
     // ================================================================
     // Built-in registries — behaviour, from Java, at game start
     // ================================================================
@@ -110,5 +113,6 @@ public final class SigilsRegistries {
         event.dataPackRegistry(PHENOMENON, PhenomenonDefinition.CODEC, PhenomenonDefinition.CODEC);
         event.dataPackRegistry(REACTION, ReactionRuleDefinition.CODEC, ReactionRuleDefinition.CODEC);
         event.dataPackRegistry(SPELL, SpellDefinition.CODEC, SpellDefinition.CODEC);
+        event.dataPackRegistry(PARTICLE_PROFILE, ParticleProfileDefinition.CODEC, ParticleProfileDefinition.CODEC);
     }
 }
