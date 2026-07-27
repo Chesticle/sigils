@@ -1,0 +1,5 @@
+{
+  "variants": {
+    "": { "model": "sigils:block/drafting_table" }
+  }
+}

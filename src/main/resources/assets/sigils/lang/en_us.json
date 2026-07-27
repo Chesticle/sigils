@@ -1,0 +1,12 @@
+{
+  "itemGroup.sigils": "Sigils",
+  "block.sigils.drafting_table": "Drafting Table",
+  "item.sigils.parchment": "Parchment",
+  "item.sigils.pen": "Pen",
+  "item.sigils.magical_ink": "Magical Ink",
+  "container.sigils.drafting_table": "Drafting Table",
+  "screen.sigils.drafting.ready": "Ready — up to %s glyphs, %s crest, %s ink",
+  "screen.sigils.drafting.missing": "Needs: %s",
+  "tooltip.sigils.parchment.blank": "Blank",
+  "message.sigils.budget_exhausted": "Too many spells this tick."
+}
