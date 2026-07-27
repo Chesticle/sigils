@@ -1,0 +1,10 @@
+{
+  "role": "crest",
+  "strokes": [
+    [[0.50, 0.15], [0.80, 0.60], [0.50, 0.85], [0.20, 0.60], [0.50, 0.15]]
+  ],
+  "tolerance": 0.06,
+  "complexity": 2,
+  "ink_cost": 2.0,
+  "contribution": { "sigils:water": 1.0 }
+}

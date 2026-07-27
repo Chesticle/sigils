@@ -5,10 +5,18 @@ import com.mojang.brigadier.context.CommandContext;
 import com.sigils.cast.CastContext;
 import com.sigils.cast.SpellCaster;
 import com.sigils.cast.SpellCasting;
+import com.sigils.core.draft.DraftLimits;
+import com.sigils.core.draft.DraftValidator;
+import com.sigils.core.draft.InkCost;
+import com.sigils.core.geometry.Vec2;
+import com.sigils.core.glyph.Glyph;
+import com.sigils.core.glyph.GlyphInstance;
+import com.sigils.core.glyph.GlyphLookup;
 import com.sigils.core.particle.ParticleProfile;
 import com.sigils.core.particle.ProfileLookup;
 import com.sigils.core.particle.SpellVisuals;
 import com.sigils.core.spell.CompiledSpell;
+import com.sigils.core.spell.ValidationResult;
 import com.sigils.registry.*;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -67,6 +75,10 @@ public final class SigilsCommands {
                                                 c.getSource().registryAccess().lookupOrThrow(SigilsRegistries.SPELL)
                                                         .keySet().stream().map(Identifier::toString), b))
                                         .executes(SigilsCommands::visualize)))
+                        .then(Commands.literal("glyphs")
+                                .executes(SigilsCommands::listGlyphs))
+                        .then(Commands.literal("draft")
+                                .executes(SigilsCommands::checkDemoDraft))
         );
     }
 
@@ -221,6 +233,66 @@ public final class SigilsCommands {
         source.sendSuccess(() -> Component.literal("  character  turbulence " + fmt(profile.turbulence())
                 + "  emissive " + fmt(profile.emissive()) + "  density " + fmt(profile.density())), false);
         return 1;
+    }
+    /** Lists everything loaded from the datapack glyph registry. */
+    private static int listGlyphs(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        Registry<GlyphDefinition> registry =
+                source.registryAccess().lookupOrThrow(SigilsRegistries.GLYPH);
+
+        source.sendSuccess(() -> Component.literal("Loaded glyphs:"), false);
+
+        int count = 0;
+        for (Identifier id : registry.keySet()) {
+            GlyphDefinition definition = registry.getValue(id);
+            if (definition == null) continue;
+            count++;
+            Glyph glyph = definition.toCore(id);
+            String detail = switch (glyph.role()) {
+                case CREST -> "  " + glyph.contribution().map(Object::toString).orElse("no mixture");
+                case MODIFIER -> "  " + glyph.operation().map(Object::toString).orElse("no operation");
+                default -> "";
+            };
+            String line = String.format(
+                    "  %s  role=%s strokes=%d tol=%.2f complexity=%d ink=%.1f%s",
+                    id, glyph.role(), glyph.strokes().size(), glyph.toleranceBand(),
+                    glyph.complexity(), glyph.inkCost(), detail);
+            source.sendSuccess(() -> Component.literal(line), false);
+        }
+
+        final int total = count;
+        source.sendSuccess(() -> Component.literal(total + " glyph(s) from datapacks"), false);
+        return total;
+    }
+
+    /**
+     * Runs a hardcoded three-glyph draft through the real registry-backed lookup and
+     * the real validator — exactly the two calls the canvas screen will make in
+     * Part C, minus the pixels.
+     */
+    private static int checkDemoDraft(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        GlyphLookup glyphs = SigilsGlyphs.lookup(source.registryAccess());
+
+        List<GlyphInstance> draft = List.of(
+                new GlyphInstance("sigils:ring_basic", new Vec2(0.5f, 0.5f), 0f, 1.0f),
+                new GlyphInstance("sigils:crest_fire", new Vec2(0.5f, 0.5f), 0f, 0.35f),
+                new GlyphInstance("sigils:mod_beam", new Vec2(0.5f, 0.72f), 0f, 0.25f));
+
+        ValidationResult result = DraftValidator.validate(draft, glyphs, DraftLimits.DRAFTING_TABLE);
+        float ink = InkCost.of(draft, glyphs);
+
+        source.sendSuccess(() -> Component.literal(
+                String.format("Demo draft: %d glyph(s), ink cost %.2f", draft.size(), ink)), false);
+
+        if (result.valid()) {
+            source.sendSuccess(() -> Component.literal("  ✔ castable — this draft would compile"), false);
+            return 1;
+        }
+        for (String error : result.errors()) {
+            source.sendSuccess(() -> Component.literal("  ✘ " + error), false);
+        }
+        return 0;
     }
 
     private static String fmt(float v) {

@@ -1,0 +1,11 @@
+{
+  "role": "modifier",
+  "strokes": [
+    [[0.50, 0.25], [0.50, 0.75]],
+    [[0.25, 0.50], [0.75, 0.50]]
+  ],
+  "tolerance": 0.05,
+  "complexity": 1,
+  "ink_cost": 1.0,
+  "operation": { "type": "target", "target": "sigils:looked_at_block" }
+}

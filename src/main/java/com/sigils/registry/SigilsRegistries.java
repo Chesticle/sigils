@@ -63,6 +63,9 @@ public final class SigilsRegistries {
     public static final ResourceKey<Registry<ParticleProfileDefinition>> PARTICLE_PROFILE =
             ResourceKey.createRegistryKey(Sigils.id("particle_profile"));
 
+    public static final ResourceKey<Registry<GlyphDefinition>> GLYPH =
+            ResourceKey.createRegistryKey(Sigils.id("glyph"));
+
     // ================================================================
     // Built-in registries — behaviour, from Java, at game start
     // ================================================================
@@ -109,10 +112,16 @@ public final class SigilsRegistries {
                 ELEMENT,
                 ElementDefinition.CODEC,  // disk/server codec
                 ElementDefinition.CODEC   // network codec — clients need colours for particles
+
         );
         event.dataPackRegistry(PHENOMENON, PhenomenonDefinition.CODEC, PhenomenonDefinition.CODEC);
         event.dataPackRegistry(REACTION, ReactionRuleDefinition.CODEC, ReactionRuleDefinition.CODEC);
         event.dataPackRegistry(SPELL, SpellDefinition.CODEC, SpellDefinition.CODEC);
         event.dataPackRegistry(PARTICLE_PROFILE, ParticleProfileDefinition.CODEC, ParticleProfileDefinition.CODEC);
+        event.dataPackRegistry(
+                GLYPH,
+                GlyphDefinition.CODEC,  // disk/server codec
+                GlyphDefinition.CODEC   // network codec — the client draws the palette from this
+        );
     }
 }

@@ -1,0 +1,10 @@
+{
+  "role": "crest",
+  "strokes": [
+    [[0.25, 0.70], [0.50, 0.30], [0.75, 0.70], [0.25, 0.70]]
+  ],
+  "tolerance": 0.06,
+  "complexity": 2,
+  "ink_cost": 2.0,
+  "contribution": { "sigils:earth": 1.0 }
+}
