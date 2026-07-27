@@ -8,5 +8,12 @@
   "screen.sigils.drafting.ready": "Ready — up to %s glyphs, %s crest, %s ink",
   "screen.sigils.drafting.missing": "Needs: %s",
   "tooltip.sigils.parchment.blank": "Blank",
-  "message.sigils.budget_exhausted": "Too many spells this tick."
+  "message.sigils.budget_exhausted": "Too many spells this tick.",
+  "screen.sigils.drafting.clear": "Clear",
+  "screen.sigils.drafting.confirm": "Confirm",
+  "screen.sigils.drafting.ink": "Ink %s / %s",
+  "screen.sigils.drafting.valid": "This circle is castable.",
+  "screen.sigils.drafting.trace_next": "Tracing comes next.",
+  "screen.sigils.drafting.more_errors": "…and %s more",
+  "screen.sigils.drafting.turn": "Turn 15°"
 }

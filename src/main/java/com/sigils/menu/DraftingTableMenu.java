@@ -36,8 +36,8 @@ public class DraftingTableMenu extends AbstractContainerMenu {
     private static final int TABLE_SLOT_Y = 14;
     private static final int TABLE_SLOT_SPACING = 24;
     private static final int INVENTORY_X = 48;
-    private static final int INVENTORY_Y = 158;
-    private static final int HOTBAR_Y = 218;
+    private static final int INVENTORY_Y = 218;
+    private static final int HOTBAR_Y = 276;
 
     private final Container table;
     private final ContainerLevelAccess access;
