@@ -1,5 +1,6 @@
 package com.sigils.client.screen;
 
+import com.sigils.draft.DraftContext;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -10,16 +11,21 @@ import net.minecraft.world.inventory.Slot;
 
 import java.util.List;
 
-import com.sigils.client.draft.CanvasRenderer;
-import com.sigils.client.draft.ClientGlyphs;
-import com.sigils.client.draft.DraftSession;
 import com.sigils.core.geometry.Vec2;
 import com.sigils.core.glyph.Glyph;
 import com.sigils.core.glyph.GlyphInstance;
 import com.sigils.core.glyph.GlyphRole;
-import com.sigils.core.glyph.GlyphTransform;
-import com.sigils.draft.DraftContext;
 import com.sigils.menu.DraftingTableMenu;
+
+import net.neoforged.neoforge.client.network.ClientPacketDistributor;
+
+import com.sigils.client.draft.DraftTemplates;
+import com.sigils.client.draft.TraceRecorder;
+import com.sigils.core.geometry.StrokePath;
+import com.sigils.net.SpellDraftPayload;
+import com.sigils.client.draft.CanvasRenderer;
+import com.sigils.client.draft.ClientGlyphs;
+import com.sigils.client.draft.DraftSession;
 
 /**
  * The drafting table's canvas.
@@ -75,6 +81,10 @@ public class DraftingTableScreen extends AbstractContainerScreen<DraftingTableMe
     private static final int COLOUR_TEXT = 0xFFE8DCC0;
     private static final int COLOUR_ERROR = 0xFFD98C4A;
     private static final int COLOUR_OK = 0xFF8FBF6F;
+    private static final int COLOUR_BAND = 0x22000000;
+    private static final int COLOUR_GUIDE_ACTIVE = 0x88000000;
+    private static final int COLOUR_GUIDE_DONE = 0x22000000;
+    private static final int COLOUR_TRACE_DONE = 0xFF5A9E4A;
 
     private static final float STROKE_THICKNESS = 1.4f;
 
@@ -83,8 +93,11 @@ public class DraftingTableScreen extends AbstractContainerScreen<DraftingTableMe
     private ClientGlyphs catalogue;
     private DraftSession session;
     private List<Glyph> palette;
+    private TraceRecorder recorder; // null while arranging
 
     private Button confirmButton;
+    private Button primaryButton;            // "Trace" then "Inscribe"
+    private Button secondaryButton;          // "Turn 15°" then "Redo"
 
     public DraftingTableScreen(DraftingTableMenu menu, Inventory playerInventory, Component title) {
         super(menu, playerInventory, title, PANEL_WIDTH, PANEL_HEIGHT);
@@ -102,35 +115,87 @@ public class DraftingTableScreen extends AbstractContainerScreen<DraftingTableMe
 
         addRenderableWidget(Button.builder(
                         Component.translatable("screen.sigils.drafting.clear"),
-                        button -> session.clear())
-                .bounds(leftPos + 8, topPos + BUTTON_Y, 60, BUTTON_HEIGHT)
+                        button -> {
+                            recorder = null;
+                            session.clear();
+                        })
+                .bounds(leftPos + 8, topPos + BUTTON_Y, 44, BUTTON_HEIGHT)
+                .build());
+
+        secondaryButton = addRenderableWidget(Button.builder(
+                        Component.translatable("screen.sigils.drafting.turn"),
+                        button -> {
+                            if (recorder == null) {
+                                session.rotateHeld(DraftSession.ROTATION_STEP);
+                            } else {
+                                recorder.redoTarget();
+                            }
+                        })
+                .bounds(leftPos + 56, topPos + BUTTON_Y, 44, BUTTON_HEIGHT)
                 .build());
 
         addRenderableWidget(Button.builder(
-                        Component.translatable("screen.sigils.drafting.turn"),
-                        button -> session.rotateHeld(DraftSession.ROTATION_STEP))
-                .bounds(leftPos + 72, topPos + BUTTON_Y, 60, BUTTON_HEIGHT)
+                        Component.translatable("screen.sigils.drafting.save"),
+                        button -> DraftTemplates.save(session.placements()))
+                .bounds(leftPos + 104, topPos + BUTTON_Y, 36, BUTTON_HEIGHT)
                 .build());
 
-        confirmButton = addRenderableWidget(Button.builder(
-                        Component.translatable("screen.sigils.drafting.confirm"),
-                        button -> { /* Part D sends the draft here */ })
-                .bounds(leftPos + PALETTE_X, topPos + BUTTON_Y, 78, BUTTON_HEIGHT)
+        addRenderableWidget(Button.builder(
+                        Component.translatable("screen.sigils.drafting.load"),
+                        button -> {
+                            if (recorder == null) {
+                                session.load(DraftTemplates.loadLast());
+                            }
+                        })
+                .bounds(leftPos + 144, topPos + BUTTON_Y, 36, BUTTON_HEIGHT)
                 .build());
-        confirmButton.active = false;
+
+        primaryButton = addRenderableWidget(Button.builder(
+                        Component.translatable("screen.sigils.drafting.trace"),
+                        button -> onPrimary())
+                .bounds(leftPos + 184, topPos + BUTTON_Y, 64, BUTTON_HEIGHT)
+                .build());
     }
 
     @Override
     protected void containerTick() {
         super.containerTick();
 
-        // The pen or ink can change while the screen is open.
         DraftContext context = menu.context();
-        session.limits(context.limits());
-        palette = catalogue.palette(context.limits());
 
-        // Tracing arrives in Part D; until then there is nothing to confirm.
-        confirmButton.active = false;
+        if (recorder == null) {
+            session.limits(context.limits());
+            palette = catalogue.palette(context.limits());
+            primaryButton.setMessage(Component.translatable("screen.sigils.drafting.trace"));
+            primaryButton.active = context.ready() && session.validation().valid()
+                    && !session.placements().isEmpty();
+            secondaryButton.setMessage(Component.translatable("screen.sigils.drafting.turn"));
+        } else {
+            primaryButton.setMessage(Component.translatable("screen.sigils.drafting.inscribe"));
+            primaryButton.active = recorder.complete();
+            secondaryButton.setMessage(Component.translatable("screen.sigils.drafting.redo"));
+        }
+    }
+
+    /** Trace ▸ locks the arrangement; Inscribe ▸ sends it. */
+    private void onPrimary() {
+        if (recorder == null) {
+            recorder = new TraceRecorder(
+                    session.placements(), catalogue.lookup(), menu.context().inkCapacity());
+            return;
+        }
+        if (!recorder.complete()) {
+            return;
+        }
+        ClientPacketDistributor.sendToServer(new SpellDraftPayload(
+                menu.containerId,
+                SpellDraftPayload.from(recorder.ordered()),
+                recorder.encoded()));
+
+        // Optimistic reset. If the server refuses, the parchment simply doesn't
+        // change — and the server logs why.
+        recorder = null;
+        session.clear();
     }
 
     // ------------------------------------------------------------------ drawing
@@ -174,12 +239,64 @@ public class DraftingTableScreen extends AbstractContainerScreen<DraftingTableMe
     }
 
     private void drawPlacements(GuiGraphicsExtractor graphics) {
-        for (GlyphInstance placement : session.placements()) {
-            catalogue.get(placement.glyphId()).ifPresent(glyph ->
-                    CanvasRenderer.placed(graphics, glyph, placement,
-                            leftPos + CANVAS_X, topPos + CANVAS_Y, CANVAS_SIZE,
-                            STROKE_THICKNESS, colourFor(glyph.role())));
+        if (recorder == null) {
+            for (GlyphInstance placement : session.placements()) {
+                catalogue.get(placement.glyphId()).ifPresent(glyph ->
+                        CanvasRenderer.placed(graphics, glyph, placement,
+                                leftPos + CANVAS_X, topPos + CANVAS_Y, CANVAS_SIZE,
+                                STROKE_THICKNESS, colourFor(glyph.role())));
+            }
+            return;
         }
+        drawTraceGuides(graphics);
+        drawTraceLines(graphics);
+    }
+
+    /** Faint ideal geometry, with a tolerance band around the glyph being drawn. */
+    private void drawTraceGuides(GuiGraphicsExtractor graphics) {
+        for (int i = 0; i < recorder.size(); i++) {
+            List<StrokePath> ideal = recorder.idealAt(i);
+            boolean current = i == recorder.target();
+
+            if (current) {
+                // The band you have to stay inside, drawn as a fat translucent line.
+                float band = recorder.toleranceAt(i) * 2f * CANVAS_SIZE;
+                CanvasRenderer.strokes(graphics, ideal,
+                        leftPos + CANVAS_X, topPos + CANVAS_Y, CANVAS_SIZE, band, COLOUR_BAND);
+            }
+
+            CanvasRenderer.strokes(graphics, ideal,
+                    leftPos + CANVAS_X, topPos + CANVAS_Y, CANVAS_SIZE, 1f,
+                    current ? COLOUR_GUIDE_ACTIVE
+                            : recorder.donePast(i) ? COLOUR_GUIDE_DONE : COLOUR_GUIDE);
+        }
+    }
+
+    /** The player's own line, green where it's accurate and red where it isn't. */
+    private void drawTraceLines(GuiGraphicsExtractor graphics) {
+        for (int i = 0; i < recorder.size(); i++) {
+            List<Vec2> points = recorder.samplesAt(i);
+            float tolerance = recorder.toleranceAt(i);
+            for (int p = 1; p < points.size(); p++) {
+                Vec2 a = points.get(p - 1);
+                Vec2 b = points.get(p);
+                int colour = recorder.donePast(i)
+                        ? COLOUR_TRACE_DONE
+                        : accuracyColour(recorder.deviationAt(b), tolerance);
+                CanvasRenderer.segment(graphics,
+                        canvasX(a.x()), canvasY(a.y()),
+                        canvasX(b.x()), canvasY(b.y()),
+                        2f, colour);
+            }
+        }
+    }
+
+    /** Green inside the band, fading to red as the pen strays past it. */
+    private static int accuracyColour(float deviation, float tolerance) {
+        float t = tolerance <= 0f ? 1f : Math.clamp(deviation / tolerance, 0f, 1f);
+        int red = Math.round(0x5A + t * (0xC8 - 0x5A));
+        int green = Math.round(0xC8 - t * (0xC8 - 0x3A));
+        return 0xFF000000 | (red << 16) | (green << 8) | 0x30;
     }
 
     /** The glyph on the cursor, previewed where it would land if dropped. */
@@ -230,8 +347,9 @@ public class DraftingTableScreen extends AbstractContainerScreen<DraftingTableMe
         if (capacity <= 0f) {
             return;
         }
-        float fraction = Math.clamp(session.inkCost() / capacity, 0f, 1f);
-        boolean over = session.inkCost() > capacity;
+        float spent = recorder == null ? session.inkCost() : recorder.ledger().spent();
+        float fraction = Math.clamp(spent / capacity, 0f, 1f);
+        boolean over = spent > capacity;
         graphics.fill(x + 1, y + 1,
                 x + 1 + Math.round(fraction * (INK_BAR_WIDTH - 2)), y + INK_BAR_HEIGHT - 1,
                 over ? COLOUR_INK_OVER : COLOUR_INK);
@@ -249,6 +367,22 @@ public class DraftingTableScreen extends AbstractContainerScreen<DraftingTableMe
                         String.format("%.1f", context.inkCapacity())),
                 INK_BAR_X, INK_BAR_Y - 10,
                 session.inkCost() > context.inkCapacity() ? COLOUR_ERROR : COLOUR_TEXT, false);
+
+        if (recorder != null) {
+            Component progress = recorder.complete()
+                    ? Component.translatable("screen.sigils.drafting.traced")
+                    : Component.translatable("screen.sigils.drafting.progress",
+                    recorder.target() + 1, recorder.size(),
+                    Math.round(recorder.currentCoverage() * 100));
+            graphics.text(font, progress, ERROR_X, ERROR_Y,
+                    recorder.complete() ? COLOUR_OK : COLOUR_TEXT, false);
+
+            if (!recorder.message().isEmpty()) {
+                graphics.text(font, Component.literal(recorder.message()),
+                        ERROR_X, ERROR_Y + ERROR_LINE_HEIGHT, COLOUR_ERROR, false);
+            }
+            return;
+        }
 
         // What's stopping this from being a spell.
         if (!context.ready()) {
@@ -285,6 +419,14 @@ public class DraftingTableScreen extends AbstractContainerScreen<DraftingTableMe
         double mouseX = event.x();
         double mouseY = event.y();
 
+        if (recorder != null) {
+            if (inCanvas(mouseX, mouseY)) {
+                recorder.penDown(canvasPoint(mouseX, mouseY));
+                return true;
+            }
+            return super.mouseClicked(event, doubleClick);
+        }
+
         int paletteIndex = paletteIndexAt(mouseX, mouseY);
         if (paletteIndex >= 0) {
             session.take(palette.get(paletteIndex));
@@ -305,6 +447,24 @@ public class DraftingTableScreen extends AbstractContainerScreen<DraftingTableMe
         }
 
         return super.mouseClicked(event, doubleClick);
+    }
+
+    @Override
+    public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
+        if (recorder != null && inCanvas(event.x(), event.y())) {
+            recorder.penMove(canvasPoint(event.x(), event.y()));
+            return true;
+        }
+        return super.mouseDragged(event, dragX, dragY);
+    }
+
+    @Override
+    public boolean mouseReleased(MouseButtonEvent event) {
+        if (recorder != null) {
+            recorder.penUp();
+            return true;
+        }
+        return super.mouseReleased(event);
     }
 
     @Override

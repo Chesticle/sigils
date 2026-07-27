@@ -4,6 +4,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
+import com.sigils.draft.DraftInscriber;
 
 import com.sigils.Sigils;
 
@@ -21,5 +22,10 @@ public final class SigilsNetwork {
                 SigilEmitterPayload.STREAM_CODEC,
                 (payload, context) -> context.enqueueWork(
                         () -> com.sigils.client.EmitterClient.accept(payload)));
+        registrar.playToServer(
+                SpellDraftPayload.TYPE,
+                SpellDraftPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(
+                        () -> DraftInscriber.accept(payload, context.player())));
     }
 }

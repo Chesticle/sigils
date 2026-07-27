@@ -15,5 +15,12 @@
   "screen.sigils.drafting.valid": "This circle is castable.",
   "screen.sigils.drafting.trace_next": "Tracing comes next.",
   "screen.sigils.drafting.more_errors": "…and %s more",
-  "screen.sigils.drafting.turn": "Turn 15°"
+  "screen.sigils.drafting.turn": "Turn 15°",
+  "screen.sigils.drafting.trace": "Trace",
+  "screen.sigils.drafting.inscribe": "Inscribe",
+  "screen.sigils.drafting.redo": "Redo",
+  "screen.sigils.drafting.save": "Save",
+  "screen.sigils.drafting.load": "Load",
+  "screen.sigils.drafting.progress": "Glyph %s of %s — %s%% covered",
+  "screen.sigils.drafting.traced": "Traced. Ready to inscribe."
 }

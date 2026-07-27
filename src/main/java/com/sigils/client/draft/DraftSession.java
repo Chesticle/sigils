@@ -130,6 +130,14 @@ public final class DraftSession {
         revalidate();
     }
 
+    /** Replace the arrangement wholesale, e.g. from a saved template. */
+    public void load(List<GlyphInstance> loaded) {
+        placements.clear();
+        placements.addAll(loaded);
+        held = null;
+        revalidate();
+    }
+
     // ---------------------------------------------------------------- queries
 
     /** Topmost placement under a canvas point, or -1. Later placements win. */

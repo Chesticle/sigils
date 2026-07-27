@@ -10,6 +10,7 @@ import com.sigils.core.glyph.Glyph;
 import com.sigils.core.glyph.GlyphInstance;
 import com.sigils.core.glyph.GlyphTransform;
 
+
 /**
  * Draws normalised 0..1 geometry into a square box on screen.
  *

@@ -88,6 +88,10 @@ public class DraftingTableMenu extends AbstractContainerMenu {
         return table.getItem(SLOT_PARCHMENT);
     }
 
+    public void setParchment(ItemStack stack) {
+        table.setItem(SLOT_PARCHMENT, stack);
+    }
+
     public ItemStack pen() {
         return table.getItem(SLOT_PEN);
     }
