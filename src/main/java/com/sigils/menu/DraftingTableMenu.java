@@ -8,6 +8,7 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerLevelAccess;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.core.RegistryAccess;
 
 import com.sigils.block.DraftingTableBlockEntity;
 import com.sigils.block.SigilsBlocks;
@@ -15,6 +16,7 @@ import com.sigils.draft.DraftContext;
 import com.sigils.draft.InkSupply;
 import com.sigils.draft.PenTiers;
 import com.sigils.item.SigilsItems;
+
 
 /**
  * The drafting table's container: parchment, pen, ink, plus the player's
@@ -41,6 +43,7 @@ public class DraftingTableMenu extends AbstractContainerMenu {
 
     private final Container table;
     private final ContainerLevelAccess access;
+    private final RegistryAccess registries;   // ← add
 
     /** Client-side constructor — the {@link SigilsMenus#DRAFTING_TABLE} type calls this. */
     public DraftingTableMenu(int containerId, Inventory playerInventory) {
@@ -54,10 +57,12 @@ public class DraftingTableMenu extends AbstractContainerMenu {
         checkContainerSize(table, SLOT_COUNT);
         this.table = table;
         this.access = access;
+        this.registries = playerInventory.player.level().registryAccess();
         table.startOpen(playerInventory.player);
 
         for (int slot = 0; slot < SLOT_COUNT; slot++) {
-            addSlot(new TableSlot(table, slot, TABLE_SLOT_X, TABLE_SLOT_Y + slot * TABLE_SLOT_SPACING));
+            addSlot(new TableSlot(registries, table, slot,
+                    TABLE_SLOT_X, TABLE_SLOT_Y + slot * TABLE_SLOT_SPACING));
         }
 
         for (int row = 0; row < 3; row++) {
@@ -75,11 +80,11 @@ public class DraftingTableMenu extends AbstractContainerMenu {
      * Which items each table slot accepts. Static so the block entity, the slot,
      * and Part D's server-side check all ask the same question.
      */
-    public static boolean accepts(int slot, ItemStack stack) {
+    public static boolean accepts(RegistryAccess registries, int slot, ItemStack stack) {
         return switch (slot) {
             case SLOT_PARCHMENT -> stack.is(SigilsItems.PARCHMENT.get());
-            case SLOT_PEN -> PenTiers.isPen(stack);
-            case SLOT_INK -> InkSupply.isInk(stack);
+            case SLOT_PEN -> PenTiers.isPen(registries, stack);
+            case SLOT_INK -> InkSupply.isInk(registries, stack);
             default -> false;
         };
     }
@@ -101,8 +106,9 @@ public class DraftingTableMenu extends AbstractContainerMenu {
     }
 
     /** The rules in force right now, from the items currently in the table. */
+    /** The rules in force right now, from the items currently in the table. */
     public DraftContext context() {
-        return DraftContext.of(parchment(), pen(), ink());
+        return DraftContext.of(registries, parchment(), pen(), ink());
     }
 
     @Override
@@ -146,19 +152,21 @@ public class DraftingTableMenu extends AbstractContainerMenu {
         table.stopOpen(player);
     }
 
-    /** A slot that enforces {@link #accepts(int, ItemStack)} on both sides. */
+    /** A slot that enforces {@link #accepts(RegistryAccess, int, ItemStack)} on both sides. */
     private static final class TableSlot extends Slot {
 
+        private final RegistryAccess registries;
         private final int tableIndex;
 
-        private TableSlot(Container container, int index, int x, int y) {
+        private TableSlot(RegistryAccess registries, Container container, int index, int x, int y) {
             super(container, index, x, y);
+            this.registries = registries;
             this.tableIndex = index;
         }
 
         @Override
         public boolean mayPlace(ItemStack stack) {
-            return accepts(tableIndex, stack);
+            return accepts(registries, tableIndex, stack);
         }
     }
 }

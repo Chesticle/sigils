@@ -1,0 +1,11 @@
+{
+  "item": "sigils:pen",
+  "max_glyphs": 8,
+  "max_crests": 1,
+  "max_complexity": 2,
+  "canvas_radius": 0.45,
+  "allow_multiple_rings": false,
+  "instability_factor": 1.4,
+  "instability_floor": 0.12,
+  "max_artifact_tier": 0
+}

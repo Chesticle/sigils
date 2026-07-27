@@ -85,7 +85,7 @@ public class DraftingTableBlockEntity extends BlockEntity implements Container, 
 
     @Override
     public boolean canPlaceItem(int slot, ItemStack stack) {
-        return DraftingTableMenu.accepts(slot, stack);
+        return level != null && DraftingTableMenu.accepts(level.registryAccess(), slot, stack);
     }
 
     @Override
@@ -126,4 +126,5 @@ public class DraftingTableBlockEntity extends BlockEntity implements Container, 
         super.saveAdditional(output);
         ContainerHelper.saveAllItems(output, items);
     }
+
 }

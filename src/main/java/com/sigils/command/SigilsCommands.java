@@ -8,6 +8,7 @@ import com.sigils.cast.SpellCasting;
 import com.sigils.core.draft.DraftLimits;
 import com.sigils.core.draft.DraftValidator;
 import com.sigils.core.draft.InkCost;
+import com.sigils.core.draft.PenCapabilities;
 import com.sigils.core.geometry.Vec2;
 import com.sigils.core.glyph.Glyph;
 import com.sigils.core.glyph.GlyphInstance;
@@ -37,6 +38,10 @@ import com.sigils.core.element.ElementalMixture;
 import com.sigils.core.reaction.PhenomenonResolver;
 import com.sigils.core.reaction.ReactionRule;
 import com.sigils.core.reaction.Resolution;
+import com.sigils.registry.InkGradeDefinition;
+import com.sigils.registry.PenTierDefinition;
+import com.sigils.registry.SigilsInks;
+import com.sigils.registry.SigilsPens;
 
 /**
  * Debug commands.
@@ -79,6 +84,10 @@ public final class SigilsCommands {
                                 .executes(SigilsCommands::listGlyphs))
                         .then(Commands.literal("draft")
                                 .executes(SigilsCommands::checkDemoDraft))
+                        .then(Commands.literal("pens")
+                                .executes(SigilsCommands::listPens))
+                        .then(Commands.literal("inks")
+                                .executes(SigilsCommands::listInks))
         );
     }
 
@@ -293,6 +302,57 @@ public final class SigilsCommands {
             source.sendSuccess(() -> Component.literal("  ✘ " + error), false);
         }
         return 0;
+    }
+
+    /** Lists every pen tier and the item it binds. */
+    private static int listPens(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        Registry<PenTierDefinition> registry =
+                source.registryAccess().lookupOrThrow(SigilsRegistries.PEN_TIER);
+
+        source.sendSuccess(() -> Component.literal("Pen tiers:"), false);
+
+        for (Identifier id : registry.keySet()) {
+            PenTierDefinition definition = registry.getValue(id);
+            if (definition == null) continue;
+            PenCapabilities pen = definition.toCore();
+            DraftLimits limits = pen.limits();
+            String line = String.format(
+                    "  %s  item=%s glyphs=%d crests=%d complexity=%d radius=%.2f rings=%s"
+                            + " wobble=x%.2f floor=%.2f",
+                    id, definition.item(), limits.maxGlyphs(), limits.maxCrests(),
+                    limits.maxComplexity(), limits.canvasRadius(),
+                    limits.allowMultipleRings() ? "many" : "one",
+                    pen.instabilityFactor(), pen.instabilityFloor());
+            source.sendSuccess(() -> Component.literal(line), false);
+        }
+
+        // What the table actually resolved to — a tier whose item is missing won't be here.
+        int bound = SigilsPens.table(source.registryAccess()).size();
+        source.sendSuccess(() -> Component.literal(bound + " item(s) bound as pens"), false);
+        return bound;
+    }
+
+    /** Lists every ink grade and the item it binds. */
+    private static int listInks(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        Registry<InkGradeDefinition> registry =
+                source.registryAccess().lookupOrThrow(SigilsRegistries.INK_GRADE);
+
+        source.sendSuccess(() -> Component.literal("Ink grades:"), false);
+
+        for (Identifier id : registry.keySet()) {
+            InkGradeDefinition definition = registry.getValue(id);
+            if (definition == null) continue;
+            String line = String.format("  %s  item=%s units=%.1f permanent=%s tint=#%06X",
+                    id, definition.item(), definition.unitsPerItem(),
+                    definition.permanent(), definition.tint());
+            source.sendSuccess(() -> Component.literal(line), false);
+        }
+
+        int bound = SigilsInks.table(source.registryAccess()).size();
+        source.sendSuccess(() -> Component.literal(bound + " item(s) bound as ink"), false);
+        return bound;
     }
 
     private static String fmt(float v) {

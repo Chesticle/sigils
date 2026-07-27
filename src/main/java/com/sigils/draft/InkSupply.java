@@ -1,51 +1,38 @@
 package com.sigils.draft;
 
-import net.minecraft.world.item.Item;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.world.item.ItemStack;
 
-import java.util.Map;
+import java.util.Optional;
 
-import com.sigils.item.SigilsItems;
+import com.sigils.core.draft.InkGrade;
+import com.sigils.registry.SigilsInks;
 
 /** How much ink each item is worth. Same table-not-switch rule as {@link PenTiers}. */
 public final class InkSupply {
 
-    /** Units of ink in one item. A crest costs ~2 at full scale, so this is a few glyphs. */
-    public static final float UNITS_PER_ITEM = 4f;
-
-    private static Map<Item, Float> table;
-
     private InkSupply() {}
 
-    private static Map<Item, Float> table() {
-        if (table == null) {
-            table = Map.of(SigilsItems.MAGICAL_INK.get(), UNITS_PER_ITEM);
-        }
-        return table;
-    }
-
-    /** Total ink in a stack: per-item value times count. */
-    public static float capacityOf(ItemStack stack) {
+    public static Optional<InkGrade> gradeOf(RegistryAccess registries, ItemStack stack) {
         if (stack.isEmpty()) {
-            return 0f;
+            return Optional.empty();
         }
-        Float perItem = table().get(stack.getItem());
-        return perItem == null ? 0f : perItem * stack.getCount();
+        return Optional.ofNullable(SigilsInks.table(registries).get(stack.getItem()));
     }
 
-    public static boolean isInk(ItemStack stack) {
-        return capacityOf(stack) > 0f;
+    /** Total ink in a stack: the grade's per-item value times the count. */
+    public static float capacityOf(RegistryAccess registries, ItemStack stack) {
+        return gradeOf(registries, stack)
+                .map(grade -> grade.unitsPerItem() * stack.getCount())
+                .orElse(0f);
+    }
+
+    public static boolean isInk(RegistryAccess registries, ItemStack stack) {
+        return capacityOf(registries, stack) > 0f;
     }
 
     /** How many whole items must be consumed to pay {@code cost}. */
-    public static int itemsToConsume(ItemStack stack, float cost) {
-        if (cost <= 0f || stack.isEmpty()) {
-            return 0;
-        }
-        Float perItem = table().get(stack.getItem());
-        if (perItem == null || perItem <= 0f) {
-            return 0;
-        }
-        return (int) Math.ceil(cost / perItem);
+    public static int itemsToConsume(RegistryAccess registries, ItemStack stack, float cost) {
+        return gradeOf(registries, stack).map(grade -> grade.itemsFor(cost)).orElse(0);
     }
 }

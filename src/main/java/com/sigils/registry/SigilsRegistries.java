@@ -66,6 +66,14 @@ public final class SigilsRegistries {
     public static final ResourceKey<Registry<GlyphDefinition>> GLYPH =
             ResourceKey.createRegistryKey(Sigils.id("glyph"));
 
+    /** Pen tiers. {@code data/<pack>/sigils/pen_tier/<name>.json} */
+    public static final ResourceKey<Registry<PenTierDefinition>> PEN_TIER =
+            ResourceKey.createRegistryKey(Sigils.id("pen_tier"));
+
+    /** Ink grades. {@code data/<pack>/sigils/ink_grade/<name>.json} */
+    public static final ResourceKey<Registry<InkGradeDefinition>> INK_GRADE =
+            ResourceKey.createRegistryKey(Sigils.id("ink_grade"));
+
     // ================================================================
     // Built-in registries — behaviour, from Java, at game start
     // ================================================================
@@ -123,5 +131,14 @@ public final class SigilsRegistries {
                 GlyphDefinition.CODEC,  // disk/server codec
                 GlyphDefinition.CODEC   // network codec — the client draws the palette from this
         );
+        event.dataPackRegistry(
+                PEN_TIER,
+                PenTierDefinition.CODEC,   // disk/server
+                PenTierDefinition.CODEC);  // network — the palette filter runs client-side
+
+        event.dataPackRegistry(
+                INK_GRADE,
+                InkGradeDefinition.CODEC,
+                InkGradeDefinition.CODEC); // network — the ink bar needs capacity and tint
     }
 }

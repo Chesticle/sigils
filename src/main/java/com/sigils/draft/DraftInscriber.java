@@ -1,5 +1,8 @@
 package com.sigils.draft;
 
+import com.sigils.core.draft.DraftQuality;
+import com.sigils.core.spell.*;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -21,11 +24,6 @@ import com.sigils.core.glyph.GlyphInstance;
 import com.sigils.core.glyph.GlyphLookup;
 import com.sigils.core.glyph.GlyphRole;
 import com.sigils.core.glyph.GlyphTransform;
-import com.sigils.core.spell.CompileResult;
-import com.sigils.core.spell.SpellCompiler;
-import com.sigils.core.spell.SpellGraph;
-import com.sigils.core.spell.SpellGraphBuilder;
-import com.sigils.core.spell.ValidationResult;
 import com.sigils.core.trace.TraceEvaluator;
 import com.sigils.core.trace.TraceResult;
 import com.sigils.item.SigilsItems;
@@ -82,7 +80,8 @@ public final class DraftInscriber {
                     new Vec2(placed.x(), placed.y()), placed.rotation(), placed.scale()));
         }
 
-        GlyphLookup glyphs = SigilsGlyphs.lookup(serverPlayer.level().registryAccess());
+        RegistryAccess registries = serverPlayer.level().registryAccess();
+        GlyphLookup glyphs = SigilsGlyphs.lookup(registries);
 
         // 5. Every arrangement rule, again.
         ValidationResult validation =
@@ -137,9 +136,11 @@ public final class DraftInscriber {
             return;
         }
 
-        // 9. Charge for it, and write it down.
+        // 9. Charge for it, and write it down — with the tools' character folded
+        //    into the fidelity, once, here, because the pen won't be in anyone's
+        //    hand when this parchment is finally cast.
         ItemStack ink = menu.ink();
-        int inkItems = InkSupply.itemsToConsume(ink, cost);
+        int inkItems = InkSupply.itemsToConsume(registries, ink, cost);
         if (inkItems > ink.getCount()) {
             return;
         }
@@ -148,8 +149,11 @@ public final class DraftInscriber {
         ItemStack parchment = menu.parchment();
         parchment.shrink(1);
 
+        CompiledSpell spell = DraftQuality.stamp(
+                success.spell(), context.pen(), context.parchmentQuality());
+
         ItemStack inscribed = new ItemStack(SigilsItems.PARCHMENT.get());
-        inscribed.set(SigilsComponents.SPELL.get(), success.spell());
+        inscribed.set(SigilsComponents.SPELL.get(), spell);
 
         if (parchment.isEmpty()) {
             menu.setParchment(inscribed);

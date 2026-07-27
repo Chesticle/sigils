@@ -1,43 +1,39 @@
 package com.sigils.draft;
 
-import net.minecraft.world.item.Item;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.world.item.ItemStack;
 
-import java.util.Map;
 import java.util.Optional;
 
 import com.sigils.core.draft.DraftLimits;
-import com.sigils.item.SigilsItems;
+import com.sigils.core.draft.PenCapabilities;
+import com.sigils.registry.SigilsPens;
 
 /**
- * What each pen is capable of.
+ * What each pen is capable of — now a datapack table.
  *
- * <p>A lookup table, deliberately — Phase 5 replaces the contents of {@link
- * #table()} with a datapack-loaded map and nothing else in the mod changes.
- * Every caller already asks the table rather than asking the item.
+ * <p>Phase 4 built this map in code with one entry, precisely so that this
+ * change would be confined to one file. Callers still ask the table rather than
+ * asking the item; the table just reads JSON now.
  */
 public final class PenTiers {
 
-    private static Map<Item, DraftLimits> table;
-
     private PenTiers() {}
 
-    private static Map<Item, DraftLimits> table() {
-        if (table == null) {
-            // Built lazily: items don't exist yet when this class is first loaded.
-            table = Map.of(SigilsItems.PEN.get(), DraftLimits.DRAFTING_TABLE);
-        }
-        return table;
-    }
-
-    public static Optional<DraftLimits> limitsFor(ItemStack stack) {
+    /** Everything this pen can do, or empty if the item isn't a pen at all. */
+    public static Optional<PenCapabilities> capabilitiesFor(RegistryAccess registries, ItemStack stack) {
         if (stack.isEmpty()) {
             return Optional.empty();
         }
-        return Optional.ofNullable(table().get(stack.getItem()));
+        return Optional.ofNullable(SigilsPens.table(registries).get(stack.getItem()));
     }
 
-    public static boolean isPen(ItemStack stack) {
-        return limitsFor(stack).isPresent();
+    /** Just the canvas limits — what Phase 4's validator and palette already read. */
+    public static Optional<DraftLimits> limitsFor(RegistryAccess registries, ItemStack stack) {
+        return capabilitiesFor(registries, stack).map(PenCapabilities::limits);
+    }
+
+    public static boolean isPen(RegistryAccess registries, ItemStack stack) {
+        return capabilitiesFor(registries, stack).isPresent();
     }
 }
