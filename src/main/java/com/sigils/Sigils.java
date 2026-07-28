@@ -1,6 +1,7 @@
 package com.sigils;
 
 import com.sigils.cast.SigilsCastEvents;
+import com.sigils.circuit.Circuits;
 import com.sigils.core.SigilsCore;
 import com.sigils.registry.SigilsRegistries;
 import net.minecraft.resources.Identifier;
@@ -30,6 +31,9 @@ public final class Sigils {
         SigilsRegistries.register(modBus);
         com.sigils.particle.SigilsParticles.register(modBus);
         com.sigils.block.SigilsBlocks.register(modBus);
+        // Not a DeferredRegister — this is a plain static table, so it can go
+        // anywhere in the constructor. It sits here to keep registration together.
+        Circuits.bootstrap();
         com.sigils.item.SigilsItems.register(modBus);
         com.sigils.menu.SigilsMenus.register(modBus);
         com.sigils.registry.SigilsComponents.register(modBus);
