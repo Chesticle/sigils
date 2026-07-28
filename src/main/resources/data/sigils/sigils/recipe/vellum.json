@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    "sigils:parchment",
+    "minecraft:leather"
+  ],
+  "result": { "id": "sigils:vellum", "count": 1 }
+}

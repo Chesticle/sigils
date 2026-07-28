@@ -1,0 +1,6 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "equipment",
+  "ingredients": [ "sigils:pen", "minecraft:iron_ingot" ],
+  "result": { "id": "sigils:iron_pen", "count": 1 }
+}

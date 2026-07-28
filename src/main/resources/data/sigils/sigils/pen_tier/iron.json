@@ -1,0 +1,11 @@
+{
+  "item": "sigils:iron_pen",
+  "max_glyphs": 12,
+  "max_crests": 1,
+  "max_complexity": 5,
+  "canvas_radius": 0.45,
+  "allow_multiple_rings": false,
+  "instability_factor": 1.0,
+  "instability_floor": 0.02,
+  "max_artifact_tier": 1
+}

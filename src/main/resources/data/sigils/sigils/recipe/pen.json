@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "equipment",
+  "ingredients": [
+    "minecraft:feather",
+    "minecraft:flint"
+  ],
+  "result": { "id": "sigils:pen", "count": 1 }
+}

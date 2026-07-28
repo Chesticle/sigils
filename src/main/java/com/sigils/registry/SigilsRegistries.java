@@ -74,6 +74,10 @@ public final class SigilsRegistries {
     public static final ResourceKey<Registry<InkGradeDefinition>> INK_GRADE =
             ResourceKey.createRegistryKey(Sigils.id("ink_grade"));
 
+    /** Parchment grades. {@code data/<pack>/sigils/parchment_grade/<name>.json} */
+    public static final ResourceKey<Registry<ParchmentGradeDefinition>> PARCHMENT_GRADE =
+            ResourceKey.createRegistryKey(Sigils.id("parchment_grade"));
+
     // ================================================================
     // Built-in registries — behaviour, from Java, at game start
     // ================================================================
@@ -140,5 +144,10 @@ public final class SigilsRegistries {
                 INK_GRADE,
                 InkGradeDefinition.CODEC,
                 InkGradeDefinition.CODEC); // network — the ink bar needs capacity and tint
+
+        event.dataPackRegistry(
+                PARCHMENT_GRADE,
+                ParchmentGradeDefinition.CODEC,
+                ParchmentGradeDefinition.CODEC); // network — the slot filter runs client-side too
     }
 }

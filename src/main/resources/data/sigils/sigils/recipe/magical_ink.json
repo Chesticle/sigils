@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    "minecraft:ink_sac",
+    "sigils:silverwood_sap"
+  ],
+  "result": { "id": "sigils:magical_ink", "count": 2 }
+}

@@ -20,7 +20,7 @@ public record InkGradeDefinition(
         float unitsPerItem,
         boolean permanent,
         int tint
-) {
+) implements ItemBoundTable.Bound {
     /** Accepts {@code "#RRGGBB"} or {@code "RRGGBB"}, as elements do. */
     public static final Codec<Integer> HEX_COLOR = Codec.STRING.comapFlatMap(
             raw -> {

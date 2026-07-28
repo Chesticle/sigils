@@ -1,0 +1,6 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "equipment",
+  "ingredients": [ "sigils:iron_pen", "minecraft:diamond" ],
+  "result": { "id": "sigils:diamond_pen", "count": 1 }
+}

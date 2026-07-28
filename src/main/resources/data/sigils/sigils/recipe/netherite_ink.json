@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    "sigils:magical_ink",
+    "sigils:magical_ink",
+    "sigils:magical_ink",
+    "sigils:magical_ink",
+    "minecraft:netherite_scrap"
+  ],
+  "result": { "id": "sigils:netherite_ink", "count": 4 }
+}

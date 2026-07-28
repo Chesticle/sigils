@@ -28,6 +28,7 @@ public record DraftContext(
         PenCapabilities pen,
         Optional<InkGrade> inkGrade,
         float inkCapacity,
+        float parchmentQuality,
         List<String> missing
 ) {
     public DraftContext {
@@ -65,7 +66,8 @@ public record DraftContext(
                                   ItemStack parchment, ItemStack pen, ItemStack ink) {
         List<String> missing = new ArrayList<>();
 
-        if (!parchment.is(SigilsItems.PARCHMENT.get())) {
+        Float quality = ParchmentGrades.qualityOf(registries, parchment).orElse(null);
+        if (quality == null) {
             missing.add("parchment");
         }
         PenCapabilities capabilities = PenTiers.capabilitiesFor(registries, pen).orElse(null);
@@ -84,6 +86,7 @@ public record DraftContext(
                 capabilities == null ? PenCapabilities.plain(DraftLimits.DRAFTING_TABLE) : capabilities,
                 grade,
                 capacity,
+                quality == null ? 1f : quality,
                 missing);
     }
 }

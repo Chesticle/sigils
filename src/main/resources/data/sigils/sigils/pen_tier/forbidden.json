@@ -1,0 +1,14 @@
+{
+  "item": "sigils:forbidden_pen",
+  "max_glyphs": 24,
+  "max_crests": 4,
+  "max_complexity": 99,
+  "canvas_radius": 0.50,
+  "allow_multiple_rings": false,
+  "instability_factor": 0.6,
+  "instability_floor": 0.0,
+  "inkless_on_solids": true,
+  "max_world_sigil_radius": 32,
+  "max_artifact_tier": 4,
+  "unlocks": ["sigils:restricted"]
+}

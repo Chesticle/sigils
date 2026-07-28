@@ -1,0 +1,13 @@
+{
+  "item": "sigils:netherite_pen",
+  "max_glyphs": 20,
+  "max_crests": 3,
+  "max_complexity": 99,
+  "canvas_radius": 0.48,
+  "allow_multiple_rings": false,
+  "instability_factor": 0.7,
+  "instability_floor": 0.0,
+  "inkless_on_solids": true,
+  "max_world_sigil_radius": 16,
+  "max_artifact_tier": 3
+}

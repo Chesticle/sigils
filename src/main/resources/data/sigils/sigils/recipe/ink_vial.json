@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    "minecraft:glass_bottle",
+    "minecraft:iron_nugget"
+  ],
+  "result": { "id": "sigils:ink_vial", "count": 1 }
+}

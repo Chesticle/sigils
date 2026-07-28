@@ -1,5 +1,6 @@
 package com.sigils.menu;
 
+import com.sigils.draft.ParchmentGrades;
 import net.minecraft.world.Container;
 import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.entity.player.Inventory;
@@ -15,7 +16,6 @@ import com.sigils.block.SigilsBlocks;
 import com.sigils.draft.DraftContext;
 import com.sigils.draft.InkSupply;
 import com.sigils.draft.PenTiers;
-import com.sigils.item.SigilsItems;
 
 
 /**
@@ -82,7 +82,7 @@ public class DraftingTableMenu extends AbstractContainerMenu {
      */
     public static boolean accepts(RegistryAccess registries, int slot, ItemStack stack) {
         return switch (slot) {
-            case SLOT_PARCHMENT -> stack.is(SigilsItems.PARCHMENT.get());
+            case SLOT_PARCHMENT -> ParchmentGrades.isParchment(registries, stack);
             case SLOT_PEN -> PenTiers.isPen(registries, stack);
             case SLOT_INK -> InkSupply.isInk(registries, stack);
             default -> false;
@@ -97,6 +97,15 @@ public class DraftingTableMenu extends AbstractContainerMenu {
         table.setItem(SLOT_PARCHMENT, stack);
     }
 
+    public void setInk(ItemStack stack) {
+        table.setItem(SLOT_INK, stack);
+    }
+
+    /** Tell the container its contents changed after mutating a stack in place. */
+    public void markChanged() {
+        table.setChanged();
+    }
+
     public ItemStack pen() {
         return table.getItem(SLOT_PEN);
     }
@@ -105,7 +114,6 @@ public class DraftingTableMenu extends AbstractContainerMenu {
         return table.getItem(SLOT_INK);
     }
 
-    /** The rules in force right now, from the items currently in the table. */
     /** The rules in force right now, from the items currently in the table. */
     public DraftContext context() {
         return DraftContext.of(registries, parchment(), pen(), ink());

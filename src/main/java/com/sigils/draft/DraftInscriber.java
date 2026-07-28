@@ -26,7 +26,6 @@ import com.sigils.core.glyph.GlyphRole;
 import com.sigils.core.glyph.GlyphTransform;
 import com.sigils.core.trace.TraceEvaluator;
 import com.sigils.core.trace.TraceResult;
-import com.sigils.item.SigilsItems;
 import com.sigils.menu.DraftingTableMenu;
 import com.sigils.net.SpellDraftPayload;
 import com.sigils.registry.SigilsComponents;
@@ -139,20 +138,17 @@ public final class DraftInscriber {
         // 9. Charge for it, and write it down — with the tools' character folded
         //    into the fidelity, once, here, because the pen won't be in anyone's
         //    hand when this parchment is finally cast.
-        ItemStack ink = menu.ink();
-        int inkItems = InkSupply.itemsToConsume(registries, ink, cost);
-        if (inkItems > ink.getCount()) {
+        if (!InkSupply.spend(registries, menu.ink(), cost)) {
             return;
         }
-        ink.shrink(inkItems);
 
         ItemStack parchment = menu.parchment();
+        ItemStack inscribed = parchment.copyWithCount(1);
         parchment.shrink(1);
 
         CompiledSpell spell = DraftQuality.stamp(
                 success.spell(), context.pen(), context.parchmentQuality());
 
-        ItemStack inscribed = new ItemStack(SigilsItems.PARCHMENT.get());
         inscribed.set(SigilsComponents.SPELL.get(), spell);
 
         if (parchment.isEmpty()) {
@@ -161,6 +157,7 @@ public final class DraftInscriber {
             serverPlayer.drop(inscribed, false);
         }
 
+        menu.markChanged();
         menu.broadcastChanges();
     }
 

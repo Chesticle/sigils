@@ -9,6 +9,7 @@ import java.util.function.Supplier;
 
 import com.sigils.Sigils;
 import com.sigils.core.spell.CompiledSpell;
+import com.sigils.item.InkCharge;
 
 /** Data components the mod attaches to items. */
 public final class SigilsComponents {
@@ -23,6 +24,12 @@ public final class SigilsComponents {
             COMPONENTS.registerComponentType("spell", builder -> builder
                     .persistent(CompiledSpellCodecs.CODEC)
                     .networkSynchronized(CompiledSpellCodecs.STREAM_CODEC));
+
+    /** How much ink a vial is carrying, and of what grade. */
+    public static final Supplier<DataComponentType<InkCharge>> INK_CHARGE =
+            COMPONENTS.registerComponentType("ink_charge", builder -> builder
+                    .persistent(InkCharge.CODEC)
+                    .networkSynchronized(InkCharge.STREAM_CODEC));
 
     /** Call from the mod constructor. */
     public static void register(IEventBus modBus) {

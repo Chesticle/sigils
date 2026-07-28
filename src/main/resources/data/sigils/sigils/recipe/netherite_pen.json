@@ -1,0 +1,6 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "equipment",
+  "ingredients": [ "sigils:diamond_pen", "minecraft:netherite_ingot" ],
+  "result": { "id": "sigils:netherite_pen", "count": 1 }
+}

@@ -1,0 +1,11 @@
+{
+  "item": "sigils:diamond_pen",
+  "max_glyphs": 16,
+  "max_crests": 2,
+  "max_complexity": 99,
+  "canvas_radius": 0.45,
+  "allow_multiple_rings": false,
+  "instability_factor": 0.85,
+  "instability_floor": 0.0,
+  "max_artifact_tier": 2
+}

@@ -35,7 +35,8 @@ public record PenTierDefinition(
         int maxWorldSigilRadius,
         int maxArtifactTier,
         List<String> unlocks
-) {
+
+) implements ItemBoundTable.Bound {
     public static final Codec<PenTierDefinition> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             Identifier.CODEC.fieldOf("item")
                     .forGetter(PenTierDefinition::item),

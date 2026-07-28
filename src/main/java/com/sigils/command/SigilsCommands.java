@@ -18,11 +18,13 @@ import com.sigils.core.particle.ProfileLookup;
 import com.sigils.core.particle.SpellVisuals;
 import com.sigils.core.spell.CompiledSpell;
 import com.sigils.core.spell.ValidationResult;
+import com.sigils.item.InkCharge;
 import com.sigils.registry.*;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.core.Registry;
+import net.minecraft.core.component.DataComponentType;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
@@ -33,6 +35,7 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import com.mojang.brigadier.arguments.FloatArgumentType;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 import com.sigils.core.element.ElementalMixture;
 import com.sigils.core.reaction.PhenomenonResolver;
@@ -42,6 +45,8 @@ import com.sigils.registry.InkGradeDefinition;
 import com.sigils.registry.PenTierDefinition;
 import com.sigils.registry.SigilsInks;
 import com.sigils.registry.SigilsPens;
+
+import static com.sigils.registry.SigilsComponents.COMPONENTS;
 
 /**
  * Debug commands.
@@ -370,4 +375,5 @@ public final class SigilsCommands {
                 : 1.055f * (float) Math.pow(linear, 1f / 2.4f) - 0.055f;
         return Math.clamp(Math.round(s * 255f), 0, 255);
     }
+
 }
