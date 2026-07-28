@@ -81,5 +81,14 @@ public class ParchmentItem extends Item {
         tooltip.accept(Component.literal(String.format("  %s, fidelity %.2f",
                         spell.delivery().shapeId(), spell.fidelity()))
                 .withStyle(ChatFormatting.GRAY));
+
+        String grade = stack.get(SigilsComponents.INK_GRADE.get());
+        if (grade != null) {
+            // "sigils:netherite" -> "ink_grade.sigils.netherite", the same key the
+            // ink vial uses, so one lang entry serves both.
+            tooltip.accept(Component.translatable("tooltip.sigils.parchment.ink",
+                            Component.translatable("ink_grade." + grade.replace(':', '.')))
+                    .withStyle(ChatFormatting.DARK_GRAY));
+        }
     }
 }

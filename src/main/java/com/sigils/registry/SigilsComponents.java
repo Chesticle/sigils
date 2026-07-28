@@ -2,6 +2,7 @@ package com.sigils.registry;
 
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.network.codec.ByteBufCodecs;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
@@ -10,6 +11,7 @@ import java.util.function.Supplier;
 import com.sigils.Sigils;
 import com.sigils.core.spell.CompiledSpell;
 import com.sigils.item.InkCharge;
+import com.mojang.serialization.Codec;
 
 /** Data components the mod attaches to items. */
 public final class SigilsComponents {
@@ -24,6 +26,12 @@ public final class SigilsComponents {
             COMPONENTS.registerComponentType("spell", builder -> builder
                     .persistent(CompiledSpellCodecs.CODEC)
                     .networkSynchronized(CompiledSpellCodecs.STREAM_CODEC));
+
+    /** Which ink grade a spell was inscribed with — the sketchbook's gate. */
+    public static final Supplier<DataComponentType<String>> INK_GRADE =
+            COMPONENTS.registerComponentType("ink_grade", builder -> builder
+                    .persistent(Codec.STRING)
+                    .networkSynchronized(ByteBufCodecs.stringUtf8(128)));
 
     /** How much ink a vial is carrying, and of what grade. */
     public static final Supplier<DataComponentType<InkCharge>> INK_CHARGE =

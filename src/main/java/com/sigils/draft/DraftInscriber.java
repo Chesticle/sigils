@@ -151,6 +151,11 @@ public final class DraftInscriber {
 
         inscribed.set(SigilsComponents.SPELL.get(), spell);
 
+        // What drew it, remembered on the sheet. The ink grade is a property of
+        // the table at this moment; the parchment may be bound days later.
+        context.inkGrade().ifPresent(grade ->
+                inscribed.set(SigilsComponents.INK_GRADE.get(), grade.id()));
+
         if (parchment.isEmpty()) {
             menu.setParchment(inscribed);
         } else if (!serverPlayer.getInventory().add(inscribed)) {
