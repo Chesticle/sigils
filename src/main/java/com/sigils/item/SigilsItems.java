@@ -66,6 +66,10 @@ public final class SigilsItems {
     public static final DeferredItem<Item> NETHERITE_INK =
             ITEMS.registerSimpleItem("netherite_ink", props -> props.stacksTo(16));
 
+    /** A book of finished spells. Only takes permanent ink. */
+    public static final DeferredItem<SketchbookItem> SKETCHBOOK =
+            ITEMS.registerItem("sketchbook", SketchbookItem::new, props -> props.stacksTo(1));
+
     /** Holds up to {@link InkVialItem#CAPACITY} units. Drawn down, not consumed. */
     public static final DeferredItem<InkVialItem> INK_VIAL =
             ITEMS.registerItem("ink_vial", InkVialItem::new, props -> props.stacksTo(1));
@@ -89,6 +93,7 @@ public final class SigilsItems {
                 output.accept(MAGICAL_INK.get());
                 output.accept(NETHERITE_INK.get());
                 output.accept(INK_VIAL.get());
+                output.accept(SKETCHBOOK.get());
             })
             .build());
 

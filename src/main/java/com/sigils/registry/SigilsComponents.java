@@ -1,5 +1,6 @@
 package com.sigils.registry;
 
+import com.sigils.core.spell.BoundSpells;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.codec.ByteBufCodecs;
@@ -32,6 +33,12 @@ public final class SigilsComponents {
             COMPONENTS.registerComponentType("ink_grade", builder -> builder
                     .persistent(Codec.STRING)
                     .networkSynchronized(ByteBufCodecs.stringUtf8(128)));
+
+    /** The spells bound into a sketchbook, and which is selected. */
+    public static final Supplier<DataComponentType<BoundSpells>> BOUND_SPELLS =
+            COMPONENTS.registerComponentType("bound_spells", builder -> builder
+                    .persistent(BoundSpellsCodecs.CODEC)
+                    .networkSynchronized(BoundSpellsCodecs.STREAM_CODEC));
 
     /** How much ink a vial is carrying, and of what grade. */
     public static final Supplier<DataComponentType<InkCharge>> INK_CHARGE =
