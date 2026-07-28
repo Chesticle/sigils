@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    "minecraft:book",
+    "sigils:vellum",
+    "sigils:vellum",
+    "minecraft:leather"
+  ],
+  "result": { "id": "sigils:sketchbook", "count": 1 }
+}

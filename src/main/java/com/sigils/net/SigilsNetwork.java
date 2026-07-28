@@ -1,5 +1,6 @@
 package com.sigils.net;
 
+import com.sigils.item.SketchbookCycler;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
@@ -27,5 +28,10 @@ public final class SigilsNetwork {
                 SpellDraftPayload.STREAM_CODEC,
                 (payload, context) -> context.enqueueWork(
                         () -> DraftInscriber.accept(payload, context.player())));
+        registrar.playToServer(
+                CycleSpellPayload.TYPE,
+                CycleSpellPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(
+                        () -> SketchbookCycler.accept(payload, context.player())));
     }
 }
