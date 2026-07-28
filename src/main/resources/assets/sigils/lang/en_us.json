@@ -34,5 +34,28 @@
   "screen.sigils.drafting.save": "Save",
   "screen.sigils.drafting.load": "Load",
   "screen.sigils.drafting.progress": "Glyph %s of %s — %s%% covered",
-  "screen.sigils.drafting.traced": "Traced. Ready to inscribe."
+  "screen.sigils.drafting.traced": "Traced. Ready to inscribe.",
+
+  "screen.sigils.drafting.tools": "%s · %s — complexity ≤ %s, %s crest(s)",
+  "screen.sigils.drafting.no_tools": "The table is missing something.",
+  "screen.sigils.drafting.glyph_detail": "%s · complexity %s · ink %s",
+  "screen.sigils.drafting.locked_complexity": "Needs a pen that draws complexity %s — this one draws %s",
+  "screen.sigils.drafting.locked_unknown": "You haven't learned this glyph.",
+  "screen.sigils.drafting.ink_graded": "Ink %s / %s (%s)",
+  "screen.sigils.drafting.fidelity_preview": "Hand %s → recorded %s",
+  "screen.sigils.drafting.locked_no_pen": "There's no pen in the table.",
+
+  "glyph_role.sigils.crest": "Crest",
+  "glyph_role.sigils.modifier": "Modifier",
+  "glyph_role.sigils.ring": "Ring",
+  "glyph_role.sigils.link": "Link",
+
+  "glyph.sigils.crest_fire": "Fire Crest",
+  "glyph.sigils.crest_water": "Water Crest",
+  "glyph.sigils.crest_earth": "Earth Crest",
+  "glyph.sigils.ring_basic": "Binding Ring",
+  "glyph.sigils.mod_beam": "Beam",
+  "glyph.sigils.mod_wide": "Broaden",
+  "glyph.sigils.mod_at_target": "At Target",
+  "glyph.sigils.mod_grand": "Grand"
 }

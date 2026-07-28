@@ -1,5 +1,6 @@
 package com.sigils.client.draft;
 
+import com.sigils.core.draft.GlyphAvailability;
 import net.minecraft.client.Minecraft;
 
 import java.util.ArrayList;
@@ -46,32 +47,24 @@ public final class ClientGlyphs {
     }
 
     /**
-     * The glyphs this player may place right now: ones they know, that this pen
-     * can draw. Sorted by role so the palette reads crest → modifier → ring.
+     * Everything in the registry, in palette order, each tagged with whether
+     * this pen can draw it.
+     *
+     * <p>Nothing is filtered out. A glyph the player can't use is more useful
+     * on screen than absent: it tells them the glyph exists and what it would
+     * take to draw it, which is the difference between progression and a bug
+     * report.
      */
-    public List<Glyph> palette(DraftLimits limits) {
-        List<Glyph> visible = new ArrayList<>();
-        for (Glyph glyph : glyphs.values()) {
-            if (glyph.complexity() > limits.maxComplexity()) {
-                continue; // the pen can't draw it — Phase 5 makes this per-tier
-            }
-            if (!isKnown(glyph)) {
-                continue;
-            }
-            visible.add(glyph);
-        }
-        visible.sort(Comparator
+    public List<PaletteEntry> palette(DraftLimits limits, boolean penPresent) {
+        List<Glyph> sorted = new ArrayList<>(glyphs.values());
+        sorted.sort(Comparator
                 .comparingInt((Glyph g) -> g.role().ordinal())
                 .thenComparing(Glyph::id));
-        return List.copyOf(visible);
-    }
 
-    /**
-     * Knowledge gating lands in Phase 6 (research and unlocks). Until then every
-     * glyph is known — but the seam exists, so that phase changes this method
-     * and nothing else.
-     */
-    private static boolean isKnown(Glyph glyph) {
-        return true;
+        List<PaletteEntry> entries = new ArrayList<>(sorted.size());
+        for (Glyph glyph : sorted) {
+            entries.add(new PaletteEntry(glyph, GlyphAvailability.of(glyph, limits, penPresent)));
+        }
+        return List.copyOf(entries);
     }
 }

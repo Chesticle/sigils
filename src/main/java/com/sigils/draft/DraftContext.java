@@ -26,6 +26,7 @@ import com.sigils.item.SigilsItems;
  */
 public record DraftContext(
         PenCapabilities pen,
+        boolean hasPen,
         Optional<InkGrade> inkGrade,
         float inkCapacity,
         float parchmentQuality,
@@ -84,6 +85,7 @@ public record DraftContext(
         // canvas radius to draw. ready() is false, so nothing can be confirmed.
         return new DraftContext(
                 capabilities == null ? PenCapabilities.plain(DraftLimits.DRAFTING_TABLE) : capabilities,
+                capabilities != null,
                 grade,
                 capacity,
                 quality == null ? 1f : quality,

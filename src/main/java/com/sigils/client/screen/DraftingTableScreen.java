@@ -1,54 +1,70 @@
 package com.sigils.client.screen;
 
-import com.sigils.draft.DraftContext;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
+import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
+import com.sigils.client.draft.CanvasRenderer;
+import com.sigils.client.draft.ClientGlyphs;
+import com.sigils.client.draft.DraftSession;
+import com.sigils.client.draft.DraftTemplates;
+import com.sigils.client.draft.PaletteEntry;
+import com.sigils.client.draft.TraceRecorder;
+import com.sigils.core.draft.DraftQuality;
+import com.sigils.core.draft.GlyphAvailability;
+import com.sigils.core.geometry.StrokePath;
 import com.sigils.core.geometry.Vec2;
 import com.sigils.core.glyph.Glyph;
 import com.sigils.core.glyph.GlyphInstance;
 import com.sigils.core.glyph.GlyphRole;
+import com.sigils.draft.DraftContext;
 import com.sigils.menu.DraftingTableMenu;
-
-import net.neoforged.neoforge.client.network.ClientPacketDistributor;
-
-import com.sigils.client.draft.DraftTemplates;
-import com.sigils.client.draft.TraceRecorder;
-import com.sigils.core.geometry.StrokePath;
 import com.sigils.net.SpellDraftPayload;
-import com.sigils.client.draft.CanvasRenderer;
-import com.sigils.client.draft.ClientGlyphs;
-import com.sigils.client.draft.DraftSession;
 
 /**
  * The drafting table's canvas.
  *
- * <p>Client-only and self-contained: it renders glyphs from their stroke data,
- * lets the player arrange them, and reports what {@code core} thinks of the
- * result. Nothing is sent anywhere — Part D adds tracing and the packet.
+ * <p>Two modes in one screen. While {@code recorder} is null the player is
+ * arranging glyphs; once they press Trace it holds a {@link TraceRecorder} and
+ * the same canvas becomes something to draw on. Everything the screen shows
+ * about what is and isn't allowed comes from {@link DraftContext}, which both
+ * sides build from the same items and the same synced registries — so the
+ * screen can be wrong about the future but never about the rules.
  */
 public class DraftingTableScreen extends AbstractContainerScreen<DraftingTableMenu> {
 
-    // ------------------------------------------------------------------ layout
+    // ------------------------------------------------------------------- layout
 
     public static final int PANEL_WIDTH = 256;
     public static final int PANEL_HEIGHT = 298;
 
     public static final int CANVAS_X = 30;
     public static final int CANVAS_Y = 14;
-    public static final int CANVAS_SIZE = 132;
+    /**
+     * 124, not 132. The ink label sits at {@code INK_BAR_Y - 10} = 140, and a
+     * 132-pixel canvas would run to 146 and swallow it.
+     */
+    public static final int CANVAS_SIZE = 124;
 
     private static final int PALETTE_X = 170;
     private static final int PALETTE_Y = 14;
     private static final int PALETTE_CELL = 24;
     private static final int PALETTE_COLUMNS = 3;
+
+    private static final int TOOLS_X = 8;
+    private static final int TOOLS_Y = 3;
 
     private static final int INK_BAR_X = CANVAS_X;
     private static final int INK_BAR_Y = 150;
@@ -76,15 +92,22 @@ public class DraftingTableScreen extends AbstractContainerScreen<DraftingTableMe
     private static final int COLOUR_MODIFIER = 0xFF2E6B72;
     private static final int COLOUR_RING = 0xFF2B2118;
     private static final int COLOUR_HELD = 0x99000000;
-    private static final int COLOUR_INK = 0xFF3F6FA8;
     private static final int COLOUR_INK_OVER = 0xFFB4451E;
     private static final int COLOUR_TEXT = 0xFFE8DCC0;
     private static final int COLOUR_ERROR = 0xFFD98C4A;
     private static final int COLOUR_OK = 0xFF8FBF6F;
+
+    // Tracing (Phase 4D)
     private static final int COLOUR_BAND = 0x22000000;
     private static final int COLOUR_GUIDE_ACTIVE = 0x88000000;
     private static final int COLOUR_GUIDE_DONE = 0x22000000;
     private static final int COLOUR_TRACE_DONE = 0xFF5A9E4A;
+
+    // Locked palette entries (Phase 5C)
+    private static final int COLOUR_LOCKED_CELL = 0xFF171210;
+    private static final int COLOUR_LOCKED_GLYPH = 0xFF4A4038;
+    private static final int COLOUR_LOCKED_MARK = 0xFF7A3A2A;
+    private static final int COLOUR_SLOT_LOCKED = 0xB0140E0A;
 
     private static final float STROKE_THICKNESS = 1.4f;
 
@@ -92,12 +115,13 @@ public class DraftingTableScreen extends AbstractContainerScreen<DraftingTableMe
 
     private ClientGlyphs catalogue;
     private DraftSession session;
-    private List<Glyph> palette;
-    private TraceRecorder recorder; // null while arranging
+    private List<PaletteEntry> palette;
 
-    private Button confirmButton;
-    private Button primaryButton;            // "Trace" then "Inscribe"
-    private Button secondaryButton;          // "Turn 15°" then "Redo"
+    /** Null while arranging; non-null once the player is tracing. */
+    private TraceRecorder recorder;
+
+    private Button primaryButton;    // "Trace" then "Inscribe"
+    private Button secondaryButton;  // "Turn 15°" then "Redo"
 
     public DraftingTableScreen(DraftingTableMenu menu, Inventory playerInventory, Component title) {
         super(menu, playerInventory, title, PANEL_WIDTH, PANEL_HEIGHT);
@@ -111,7 +135,7 @@ public class DraftingTableScreen extends AbstractContainerScreen<DraftingTableMe
         DraftContext context = menu.context();
         catalogue = ClientGlyphs.snapshot();
         session = new DraftSession(catalogue.lookup(), context.limits());
-        palette = catalogue.palette(context.limits());
+        palette = catalogue.palette(context.limits(), context.hasPen());
 
         addRenderableWidget(Button.builder(
                         Component.translatable("screen.sigils.drafting.clear"),
@@ -164,8 +188,10 @@ public class DraftingTableScreen extends AbstractContainerScreen<DraftingTableMe
         DraftContext context = menu.context();
 
         if (recorder == null) {
+            // The pen, ink or paper can change while the screen is open.
             session.limits(context.limits());
-            palette = catalogue.palette(context.limits());
+            palette = catalogue.palette(context.limits(), context.hasPen());
+
             primaryButton.setMessage(Component.translatable("screen.sigils.drafting.trace"));
             primaryButton.active = context.ready() && session.validation().valid()
                     && !session.placements().isEmpty();
@@ -180,6 +206,9 @@ public class DraftingTableScreen extends AbstractContainerScreen<DraftingTableMe
     /** Trace ▸ locks the arrangement; Inscribe ▸ sends it. */
     private void onPrimary() {
         if (recorder == null) {
+            // Anything on the cursor was never placed, so it isn't part of the
+            // arrangement being traced. Drop it, or it follows the mouse forever.
+            session.discardHeld();
             recorder = new TraceRecorder(
                     session.placements(), catalogue.lookup(), menu.context().inkCapacity());
             return;
@@ -225,6 +254,22 @@ public class DraftingTableScreen extends AbstractContainerScreen<DraftingTableMe
         drawHeld(graphics, mouseX, mouseY);
         drawPalette(graphics, mouseX, mouseY);
         drawInkBar(graphics);
+    }
+
+    @Override
+    protected void extractSlots(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
+        super.extractSlots(graphics, mouseX, mouseY);
+
+        // Tracing locks the tools; veil them so the screen says so. This has to
+        // happen after super, because that's what draws the items — extractLabels
+        // runs before the slots, so a veil there would sit underneath the pen.
+        if (recorder != null) {
+            for (int i = 0; i < DraftingTableMenu.SLOT_COUNT; i++) {
+                Slot locked = menu.slots.get(i);
+                graphics.fill(locked.x - 1, locked.y - 1, locked.x + 17, locked.y + 17,
+                        COLOUR_SLOT_LOCKED);
+            }
+        }
     }
 
     /** The centre mark and the boundary the pen allows — the snapping targets. */
@@ -301,6 +346,9 @@ public class DraftingTableScreen extends AbstractContainerScreen<DraftingTableMe
 
     /** The glyph on the cursor, previewed where it would land if dropped. */
     private void drawHeld(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
+        if (recorder != null) {
+            return;
+        }
         session.held().ifPresent(held -> {
             if (!inCanvas(mouseX, mouseY)) {
                 return;
@@ -317,23 +365,87 @@ public class DraftingTableScreen extends AbstractContainerScreen<DraftingTableMe
 
     private void drawPalette(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
         for (int i = 0; i < palette.size(); i++) {
+            PaletteEntry entry = palette.get(i);
+            Glyph glyph = entry.glyph();
+
             int cellX = leftPos + PALETTE_X + (i % PALETTE_COLUMNS) * PALETTE_CELL;
             int cellY = topPos + PALETTE_Y + (i / PALETTE_COLUMNS) * PALETTE_CELL;
+            int cellSize = PALETTE_CELL - 2;
+            boolean hovered = mouseX >= cellX && mouseX < cellX + cellSize
+                    && mouseY >= cellY && mouseY < cellY + cellSize;
 
-            graphics.fill(cellX, cellY, cellX + PALETTE_CELL - 2, cellY + PALETTE_CELL - 2, COLOUR_WELL);
-            if (mouseX >= cellX && mouseX < cellX + PALETTE_CELL - 2
-                    && mouseY >= cellY && mouseY < cellY + PALETTE_CELL - 2) {
-                graphics.fill(cellX, cellY, cellX + PALETTE_CELL - 2, cellY + PALETTE_CELL - 2,
-                        COLOUR_SELECTED_CELL);
+            graphics.fill(cellX, cellY, cellX + cellSize, cellY + cellSize,
+                    entry.locked() ? COLOUR_LOCKED_CELL : COLOUR_WELL);
+
+            // Hover feedback, but only where clicking would do something.
+            if (hovered && !entry.locked()) {
+                graphics.fill(cellX, cellY, cellX + cellSize, cellY + cellSize, COLOUR_SELECTED_CELL);
+            }
+            if (hovered && entry.locked()) {
+                graphics.outline(cellX, cellY, cellSize, cellSize, COLOUR_LOCKED_MARK);
             }
 
-            Glyph glyph = palette.get(i);
             // The glyph's own strokes, drawn straight into the cell. This loop is
             // the entire reason a new glyph needs no UI code.
             CanvasRenderer.strokes(graphics, glyph.strokes(),
                     cellX + 3, cellY + 3, PALETTE_CELL - 8,
-                    1.2f, colourFor(glyph.role()));
+                    1.2f, entry.locked() ? COLOUR_LOCKED_GLYPH : colourFor(glyph.role()));
+
+            if (entry.locked()) {
+                CanvasRenderer.segment(graphics,
+                        cellX + 4, cellY + 4, cellX + cellSize - 4, cellY + cellSize - 4,
+                        1.2f, COLOUR_LOCKED_MARK);
+            }
+
+            if (hovered) {
+                setPaletteTooltip(graphics, entry, mouseX, mouseY);
+            }
         }
+    }
+
+    /**
+     * What this glyph is, and — if it's locked — what would unlock it.
+     *
+     * <p>Submitted from {@code extractBackground} on purpose: the tooltip is
+     * drawn after the panel's pose is popped, so it needs absolute coordinates,
+     * and the mouse position here is absolute too. Doing this from
+     * {@code extractLabels} puts the tooltip a panel's width away from the
+     * cursor.
+     */
+    private void setPaletteTooltip(GuiGraphicsExtractor graphics, PaletteEntry entry,
+                                   int mouseX, int mouseY) {
+        Glyph glyph = entry.glyph();
+        List<Component> lines = new ArrayList<>(3);
+
+        // "sigils:crest_fire" -> "glyph.sigils.crest_fire", so a datapack-added
+        // glyph gets a proper name from one lang key and no code.
+        lines.add(Component.translatable("glyph." + glyph.id().replace(':', '.'))
+                .withStyle(entry.locked() ? ChatFormatting.DARK_GRAY : ChatFormatting.WHITE));
+
+        lines.add(Component.translatable("screen.sigils.drafting.glyph_detail",
+                        Component.translatable("glyph_role.sigils."
+                                + glyph.role().name().toLowerCase(Locale.ROOT)),
+                        glyph.complexity(),
+                        String.format("%.1f", glyph.inkCost()))
+                .withStyle(ChatFormatting.GRAY));
+
+        if (entry.locked()) {
+            lines.add(lockReason(entry.availability()).withStyle(ChatFormatting.GOLD));
+        }
+
+        graphics.setComponentTooltipForNextFrame(font, lines, mouseX, mouseY);
+    }
+
+    /** The data in a {@link GlyphAvailability}, turned into a sentence. */
+    private static MutableComponent lockReason(GlyphAvailability availability) {
+        return switch (availability.reason()) {
+            case NO_PEN -> Component.translatable("screen.sigils.drafting.locked_no_pen");
+            case TOO_COMPLEX -> Component.translatable(
+                    "screen.sigils.drafting.locked_complexity",
+                    availability.required(), availability.available());
+            case NOT_LEARNED -> Component.translatable("screen.sigils.drafting.locked_unknown");
+            case AVAILABLE -> Component.empty();
+        };
     }
 
     private void drawInkBar(GuiGraphicsExtractor graphics) {
@@ -347,27 +459,56 @@ public class DraftingTableScreen extends AbstractContainerScreen<DraftingTableMe
         if (capacity <= 0f) {
             return;
         }
+
+        // The outline carries the grade's colour even at zero spend, so swapping
+        // ink is visible without placing a glyph first.
+        graphics.outline(x, y, INK_BAR_WIDTH, INK_BAR_HEIGHT, context.inkTint());
+
         float spent = recorder == null ? session.inkCost() : recorder.ledger().spent();
         float fraction = Math.clamp(spent / capacity, 0f, 1f);
         boolean over = spent > capacity;
+
         graphics.fill(x + 1, y + 1,
                 x + 1 + Math.round(fraction * (INK_BAR_WIDTH - 2)), y + INK_BAR_HEIGHT - 1,
-                over ? COLOUR_INK_OVER : COLOUR_INK);
+                over ? COLOUR_INK_OVER : context.inkTint());
     }
 
     @Override
     protected void extractLabels(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
-        super.extractLabels(graphics, mouseX, mouseY);
+        // Deliberately not calling super. It would draw the block's name across
+        // the tools line, and the tools line says strictly more. The inventory
+        // label is redrawn below because that one is worth keeping.
+        graphics.text(font, playerInventoryTitle, inventoryLabelX, inventoryLabelY, COLOUR_TEXT, false);
 
         DraftContext context = menu.context();
 
-        // Ink, above its bar.
-        graphics.text(font, Component.translatable("screen.sigils.drafting.ink",
-                        String.format("%.1f", session.inkCost()),
-                        String.format("%.1f", context.inkCapacity())),
-                INK_BAR_X, INK_BAR_Y - 10,
-                session.inkCost() > context.inkCapacity() ? COLOUR_ERROR : COLOUR_TEXT, false);
+        // What you're holding, and what it permits. Panel-relative coordinates:
+        // extractLabels draws inside the translated pose.
+        Component tools = context.ready()
+                ? Component.translatable("screen.sigils.drafting.tools",
+                menu.pen().getHoverName(),
+                menu.parchment().getHoverName(),
+                context.limits().maxComplexity(),
+                context.limits().maxCrests())
+                : Component.translatable("screen.sigils.drafting.missing",
+                String.join(", ", context.missing()));
+        graphics.text(font, tools, TOOLS_X, TOOLS_Y,
+                context.ready() ? COLOUR_TEXT : COLOUR_ERROR, false);
 
+        // Ink, above its bar, named by grade when one is loaded.
+        float spent = recorder == null ? session.inkCost() : recorder.ledger().spent();
+        Component inkLine = context.inkGrade()
+                .map(grade -> (Component) Component.translatable("screen.sigils.drafting.ink_graded",
+                        String.format("%.1f", spent),
+                        String.format("%.1f", context.inkCapacity()),
+                        Component.translatable("ink_grade." + grade.id().replace(':', '.'))))
+                .orElseGet(() -> Component.translatable("screen.sigils.drafting.ink",
+                        String.format("%.1f", spent),
+                        String.format("%.1f", context.inkCapacity())));
+        graphics.text(font, inkLine, INK_BAR_X, INK_BAR_Y - 10,
+                spent > context.inkCapacity() ? COLOUR_ERROR : COLOUR_TEXT, false);
+
+        // While tracing: progress, then what the tools will actually record.
         if (recorder != null) {
             Component progress = recorder.complete()
                     ? Component.translatable("screen.sigils.drafting.traced")
@@ -380,15 +521,24 @@ public class DraftingTableScreen extends AbstractContainerScreen<DraftingTableMe
             if (!recorder.message().isEmpty()) {
                 graphics.text(font, Component.literal(recorder.message()),
                         ERROR_X, ERROR_Y + ERROR_LINE_HEIGHT, COLOUR_ERROR, false);
+            } else if (recorder.complete()) {
+                float hand = recorder.meanFidelity();
+                float recorded = DraftQuality.effectiveFidelity(
+                        hand, context.pen(), context.parchmentQuality());
+
+                graphics.text(font, Component.translatable(
+                                "screen.sigils.drafting.fidelity_preview",
+                                String.format("%.2f", hand),
+                                String.format("%.2f", recorded)),
+                        ERROR_X, ERROR_Y + ERROR_LINE_HEIGHT,
+                        recorded < hand ? COLOUR_ERROR : COLOUR_OK, false);
             }
             return;
         }
 
         // What's stopping this from being a spell.
         if (!context.ready()) {
-            graphics.text(font, Component.translatable("screen.sigils.drafting.missing",
-                    String.join(", ", context.missing())), ERROR_X, ERROR_Y, COLOUR_ERROR, false);
-            return;
+            return; // the tools line already named what's missing
         }
 
         List<String> errors = session.validation().errors();
@@ -429,7 +579,12 @@ public class DraftingTableScreen extends AbstractContainerScreen<DraftingTableMe
 
         int paletteIndex = paletteIndexAt(mouseX, mouseY);
         if (paletteIndex >= 0) {
-            session.take(palette.get(paletteIndex));
+            PaletteEntry entry = palette.get(paletteIndex);
+            if (!entry.locked()) {
+                session.take(entry.glyph());
+            }
+            // Swallowed either way: letting a click on a locked cell fall through
+            // would make something unrelated happen, which teaches the wrong thing.
             return true;
         }
 
@@ -468,8 +623,22 @@ public class DraftingTableScreen extends AbstractContainerScreen<DraftingTableMe
     }
 
     @Override
+    protected void slotClicked(Slot slot, int slotId, int buttonNum, ContainerInput containerInput) {
+        // The trace is being scored against the tools that were in the table when
+        // it started. Letting them change halfway would make the fidelity preview
+        // a lie and the ink ledger meaningless. Blocking every slot rather than
+        // just the table's three is deliberate: a shift-click from the backpack
+        // reaches the table without ever touching a table slot.
+        if (recorder != null) {
+            return;
+        }
+        super.slotClicked(slot, slotId, buttonNum, containerInput);
+    }
+
+    @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-        if (session.held().isPresent() && (inCanvas(mouseX, mouseY) || paletteIndexAt(mouseX, mouseY) >= 0)) {
+        if (recorder == null && session.held().isPresent()
+                && (inCanvas(mouseX, mouseY) || paletteIndexAt(mouseX, mouseY) >= 0)) {
             session.scaleHeld(scrollY > 0 ? 1.1f : 1f / 1.1f);
             return true;
         }

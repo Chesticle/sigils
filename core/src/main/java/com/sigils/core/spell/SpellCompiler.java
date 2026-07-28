@@ -7,6 +7,7 @@ import com.sigils.core.glyph.GlyphInstance;
 import com.sigils.core.glyph.GlyphLookup;
 import com.sigils.core.glyph.ModifierOp;
 import com.sigils.core.trace.TraceResult;
+import com.sigils.core.trace.TraceScores;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -81,8 +82,7 @@ public final class SpellCompiler {
         all.addAll(graph.modifiers());
         all.addAll(graph.rings());
 
-        float fidelitySum = 0f;
-        int fidelityCount = 0;
+        List<TraceResult> scored = new ArrayList<>(all.size());
         for (GlyphInstance instance : all) {
             TraceResult result = traces.get(instance);
             if (result == null) {
@@ -92,15 +92,14 @@ public final class SpellCompiler {
             if (!result.valid()) {
                 errors.add("Trace for '" + instance.glyphId() + "' is out of tolerance.");
             }
-            fidelitySum += result.fidelity();
-            fidelityCount++;
+            scored.add(result);
         }
 
         if (!errors.isEmpty()) {
             return new CompileResult.Failure(errors);
         }
 
-        float fidelity = fidelityCount == 0 ? 0f : fidelitySum / fidelityCount;
+        float fidelity = TraceScores.mean(scored);
 
         List<String> ringIds = new ArrayList<>();
         for (GlyphInstance ring : graph.rings()) {

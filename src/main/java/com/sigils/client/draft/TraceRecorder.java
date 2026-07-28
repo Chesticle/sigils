@@ -19,6 +19,7 @@ import com.sigils.core.glyph.GlyphRole;
 import com.sigils.core.glyph.GlyphTransform;
 import com.sigils.core.trace.TraceEvaluator;
 import com.sigils.core.trace.TraceResult;
+import com.sigils.core.trace.TraceScores;
 
 /**
  * Records the player's pen strokes for one drafting session.
@@ -134,6 +135,20 @@ public final class TraceRecorder {
         }
         return evaluator.evaluate(ideals.get(target), samples.get(target), tolerances.get(target))
                 .coverage();
+    }
+
+    /**
+     * Mean fidelity across every glyph scored so far — the same average link
+     * SpellCompiler will take, because it's the same function.
+     */
+    public float meanFidelity() {
+        List<TraceResult> scored = new ArrayList<>(results.size());
+        for (TraceResult result : results) {
+            if (result != null) {
+                scored.add(result);
+            }
+        }
+        return TraceScores.mean(scored);
     }
 
     /** Distance from a canvas point to the current glyph's ideal strokes. */
