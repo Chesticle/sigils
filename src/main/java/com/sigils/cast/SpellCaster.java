@@ -29,6 +29,20 @@ public final class SpellCaster {
     private SpellCaster() {}
 
     public static void cast(CastContext ctx, CompiledSpell spell, List<ReactionRule> rules) {
+        cast(ctx, spell, rules, 1f);
+    }
+
+    /**
+     * As above, with a multiplier on the spell's instability.
+     *
+     * <p>1.0 casts the spell as inscribed. Above 1 is something wearing it down at
+     * cast time — a worn world sigil (Phase 6), and later a fatigued artifact
+     * (Phase 8). A pen's contribution is <em>not</em> applied here: that was folded
+     * into the fidelity at inscribe time, because the pen isn't present when the
+     * spell fires and this multiplier is for things that are.
+     */
+    public static void cast(CastContext ctx, CompiledSpell spell, List<ReactionRule> rules,
+                            float instabilityFactor) {
         // Where does it land?
         Vec3 target = Targeting.resolve(ctx, spell.delivery().targetId());
 
@@ -58,7 +72,7 @@ public final class SpellCaster {
                     null, BlockPos.containing(target),
                     SoundEvents.FIRE_AMBIENT, SoundSource.PLAYERS,
                     0.6f, pitch);
-            ParticleProfile shown = profile.perturbed(spell.baseInstability());
+            ParticleProfile shown = profile.perturbed(spell.instabilityWith(instabilityFactor));
             int duration = spell.delivery().durationTicks() > 0 ? spell.delivery().durationTicks() : 12;
             SigilEmitterPayload payload = new SigilEmitterPayload(
                     shown,

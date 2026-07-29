@@ -28,11 +28,35 @@ public final class SigilsBlocks {
             DraftingTableBlock::new,
             props -> props.mapColor(MapColor.WOOD).strength(2.5f).sound(SoundType.WOOD));
 
+    /**
+     * A spell drawn on a surface. No block item — see {@link WorldSigilBlock}.
+     *
+     * <p>{@code noCollission} keeps it out of the way of the pressure plate that
+     * triggers it; {@code noOcclusion} stops it darkening the block it's drawn on;
+     * the faint light level is so you can find one at night.
+     */
+    public static final DeferredBlock<WorldSigilBlock> WORLD_SIGIL = BLOCKS.registerBlock(
+            "world_sigil",
+            WorldSigilBlock::new,
+            props -> props
+                    .mapColor(MapColor.COLOR_PURPLE)
+                    .strength(0.2f)
+                    .noCollission()
+                    .noOcclusion()
+                    .lightLevel(state -> 4)
+                    .sound(SoundType.VINE));
+
     public static final Supplier<BlockEntityType<DraftingTableBlockEntity>> DRAFTING_TABLE_ENTITY =
             BLOCK_ENTITIES.register("drafting_table", () -> new BlockEntityType<>(
                     DraftingTableBlockEntity::new,
                     false,                      // OP-only NBT loading
                     DRAFTING_TABLE.get()));     // vararg of valid blocks
+
+    public static final Supplier<BlockEntityType<WorldSigilBlockEntity>> WORLD_SIGIL_ENTITY =
+            BLOCK_ENTITIES.register("world_sigil", () -> new BlockEntityType<>(
+                    WorldSigilBlockEntity::new,
+                    false,
+                    WORLD_SIGIL.get()));
 
     /** Call from the mod constructor. */
     public static void register(IEventBus modBus) {
