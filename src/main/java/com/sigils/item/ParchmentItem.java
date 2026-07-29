@@ -1,5 +1,6 @@
 package com.sigils.item;
 
+import com.sigils.block.WorldSigilPlacement;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -11,6 +12,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.TooltipDisplay;
+import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 
 import java.util.Map;
@@ -36,6 +38,22 @@ public class ParchmentItem extends Item {
 
     public ParchmentItem(Properties properties) {
         super(properties);
+    }
+
+    /**
+     * Right-click a block face to draw the spell onto it. Sneak to cast instead.
+     *
+     * <p>{@code useOn} runs before {@code use}, so without the sneak check there
+     * would be no way to cast a spell while facing a wall — and "facing a wall" is
+     * most of the time.
+     */
+    @Override
+    public InteractionResult useOn(UseOnContext context) {
+        Player player = context.getPlayer();
+        if (player != null && player.isShiftKeyDown()) {
+            return InteractionResult.PASS; // fall through to use() and cast it
+        }
+        return WorldSigilPlacement.place(context);
     }
 
     @Override

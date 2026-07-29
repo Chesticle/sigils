@@ -143,6 +143,24 @@ public class WorldSigilBlockEntity extends BlockEntity {
 
         level.playSound(null, worldPosition, SoundEvents.ENCHANTMENT_TABLE_USE,
                 SoundSource.BLOCKS, 0.45f, 1.4f);
+
+        flash(level);
+    }
+
+    /**
+     * Light the mark for a moment.
+     *
+     * <p>A scheduled tick puts it out rather than a countdown field, for the same
+     * reason {@link CircuitLatch} stores a deadline: the block does nothing at all
+     * while it waits, and an unloaded chunk resumes correctly on its own.
+     */
+    private void flash(ServerLevel level) {
+        BlockState state = getBlockState();
+        if (!state.getValue(WorldSigilBlock.LIT)) {
+            level.setBlock(worldPosition, state.setValue(WorldSigilBlock.LIT, true),
+                    Block.UPDATE_CLIENTS);
+        }
+        level.scheduleTick(worldPosition, state.getBlock(), WorldSigilBlock.FLASH_TICKS);
     }
 
     private CircuitSite site(ServerLevel level) {
@@ -180,13 +198,13 @@ public class WorldSigilBlockEntity extends BlockEntity {
     // ------------------------------------------------------------- presentation
 
     /** ARGB for the block colour handler. Client-side; reads the synced fields. */
-    public int decalColor() {
+    public int decalColor(boolean active) {
         if (level == null || inkGradeId == null) {
             return SigilTint.FALLBACK;
         }
         return SigilsInks.byId(level.registryAccess(), inkGradeId)
                 .map(InkGrade::tint)
-                .map(tint -> SigilTint.decal(tint, integrity.value()))
+                .map(tint -> SigilTint.decal(tint, integrity.value(), active))
                 .orElse(SigilTint.FALLBACK);
     }
 

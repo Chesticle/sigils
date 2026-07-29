@@ -41,9 +41,9 @@ public final class SigilsBlocks {
             props -> props
                     .mapColor(MapColor.COLOR_PURPLE)
                     .strength(0.2f)
-                    .noCollission()
+                    .noCollision()
                     .noOcclusion()
-                    .lightLevel(state -> 4)
+                    .lightLevel(state -> state.getValue(WorldSigilBlock.LIT) ? 12 : 0)
                     .sound(SoundType.VINE));
 
     public static final Supplier<BlockEntityType<DraftingTableBlockEntity>> DRAFTING_TABLE_ENTITY =

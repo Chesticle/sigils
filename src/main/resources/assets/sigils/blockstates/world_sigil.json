@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "facing=up":    { "model": "sigils:block/world_sigil", "x": 90 },
+    "facing=down":  { "model": "sigils:block/world_sigil", "x": 270 },
+    "facing=south": { "model": "sigils:block/world_sigil" },
+    "facing=west":  { "model": "sigils:block/world_sigil", "y": 90 },
+    "facing=north": { "model": "sigils:block/world_sigil", "y": 180 },
+    "facing=east":  { "model": "sigils:block/world_sigil", "y": 270 }
+  }
+}

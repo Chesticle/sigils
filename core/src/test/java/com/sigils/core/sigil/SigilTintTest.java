@@ -43,6 +43,26 @@ class SigilTintTest {
     }
 
     @Test
+    @DisplayName("scaling preserves the ink's channel ratios exactly")
+    void channelRatiosSurvive() {
+        int shown = SigilTint.decal(MAGICAL, 1f);
+
+        // #2A2440 is blue:red = 64:42. Whatever brightness we land on, that
+        // ratio is the ink's identity and must come through unchanged.
+        assertEquals(64f / 42f, (float) b(shown) / r(shown), 0.05f);
+    }
+
+    @Test
+    @DisplayName("two dark inks do not collapse into the same grey")
+    void inksStayDistinguishable() {
+        int magical = SigilTint.decal(MAGICAL, 1f);
+        int netherite = SigilTint.decal(NETHERITE, 1f);
+
+        assertTrue(b(magical) - r(magical) > 40, "magical should read as violet");
+        assertTrue(Math.abs(b(netherite) - r(netherite)) < 40, "netherite should read as neutral");
+    }
+
+    @Test
     @DisplayName("wear dims the mark without ever blacking it out")
     void wearDimsButDoesNotErase() {
         int fresh = SigilTint.decal(MAGICAL, 1f);

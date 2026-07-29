@@ -5,7 +5,8 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.util.Identifier;
+import net.minecraft.resources.Identifier;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.BlockGetter;
@@ -20,6 +21,7 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.level.redstone.Orientation;
 import net.minecraft.world.phys.BlockHitResult;
@@ -51,6 +53,12 @@ public class WorldSigilBlock extends BaseEntityBlock {
     /** The direction the drawn surface points — away from the block it's drawn on. */
     public static final EnumProperty<Direction> FACING = BlockStateProperties.FACING;
 
+    /** True for the moment after firing. Drives the light level, nothing else. */
+    public static final BooleanProperty LIT = BlockStateProperties.LIT;
+
+    /** How long the mark glows after casting. */
+    public static final int FLASH_TICKS = 10;
+
     /** A one-pixel skin against the support face, in each of six orientations. */
     private static final Map<Direction, VoxelShape> SHAPES = Map.of(
             Direction.UP, Block.box(0, 0, 0, 16, 1, 16),
@@ -62,7 +70,9 @@ public class WorldSigilBlock extends BaseEntityBlock {
 
     public WorldSigilBlock(Properties properties) {
         super(properties);
-        registerDefaultState(getStateDefinition().any().setValue(FACING, Direction.UP));
+        registerDefaultState(getStateDefinition().any()
+                .setValue(FACING, Direction.UP)
+                .setValue(LIT, false));
     }
 
     @Override
@@ -72,7 +82,7 @@ public class WorldSigilBlock extends BaseEntityBlock {
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(FACING);
+        builder.add(FACING, LIT);
     }
 
     @Override
@@ -111,7 +121,7 @@ public class WorldSigilBlock extends BaseEntityBlock {
 
     @Override
     @Nullable
-    protected <T extends BlockEntity> BlockEntityTicker<T> getTicker(
+    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(
             Level level, BlockState state, BlockEntityType<T> type) {
 
         if (level.isClientSide()) {
@@ -122,6 +132,14 @@ public class WorldSigilBlock extends BaseEntityBlock {
     }
 
     // --------------------------------------------------------------- world hooks
+
+    /** Scheduled by the block entity when it fires. Puts the light back out. */
+    @Override
+    protected void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
+        if (state.getValue(LIT)) {
+            level.setBlock(pos, state.setValue(LIT, false), Block.UPDATE_CLIENTS);
+        }
+    }
 
     @Override
     protected void neighborChanged(BlockState state, Level level, BlockPos pos, Block neighborBlock,
