@@ -30,11 +30,18 @@ import com.sigils.circuit.Circuits;
 import com.sigils.core.draft.InkGrade;
 import com.sigils.core.sigil.CircuitLatch;
 import com.sigils.core.sigil.SigilIntegrity;
-import com.sigils.core.sigil.SigilTint;
 import com.sigils.core.spell.CompiledSpell;
 import com.sigils.registry.CompiledSpellCodecs;
 import com.sigils.registry.SigilsInks;
 import com.sigils.registry.SigilsReactions;
+
+import net.minecraft.core.Direction;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import com.sigils.core.sigil.PlaneOffset;
+import com.sigils.core.sigil.SigilFootprint;
 
 /**
  * Everything a drawn sigil remembers: the spell, what drew it, how much of it is
@@ -48,6 +55,17 @@ public class WorldSigilBlockEntity extends BlockEntity {
     /** Registry id of the ink, or null for a sheet inscribed before Phase 5D. */
     @Nullable
     private String inkGradeId;
+
+    /** The core this cell belongs to, or null if it is a core or a lone sigil. */
+    @Nullable
+    private BlockPos corePos;
+
+    /** Ring radius if this is a core; 0 for a member or a lone sigil. */
+    private int structureRadius;
+
+    /** Cached "is the circle intact?". Null means recompute. */
+    @Nullable
+    private Boolean intact;
 
     private SigilIntegrity integrity = SigilIntegrity.FULL;
     private Identifier triggerId = Circuits.DEFAULT;
@@ -69,6 +87,122 @@ public class WorldSigilBlockEntity extends BlockEntity {
         this.inkGradeId = inkGradeId;
         this.integrity = SigilIntegrity.FULL;
         sync();
+    }
+
+    /** Make this cell a member of {@code core}'s ring. It carries no spell. */
+    public void joinStructure(BlockPos core, @Nullable String inkGradeId) {
+        this.corePos = core.immutable();
+        this.inkGradeId = inkGradeId;
+        this.integrity = SigilIntegrity.FULL;
+        sync();
+    }
+
+    /** Make this cell the core of a ring. Call after {@link #inscribe}. */
+    public void becomeCore(int radius) {
+        this.structureRadius = Math.clamp(radius, 0, SigilFootprint.MAX_RADIUS);
+        this.intact = null;
+        sync();
+    }
+
+    public boolean isMember() {
+        return corePos != null;
+    }
+
+    public boolean isCore() {
+        return structureRadius > 0;
+    }
+
+    public int structureRadius() {
+        return structureRadius;
+    }
+
+    /** Every cell this structure occupies, core first. Empty for a lone sigil. */
+    public List<BlockPos> footprint() {
+        if (structureRadius <= 0) {
+            return List.of(worldPosition);
+        }
+        Direction face = getBlockState().getValue(WorldSigilBlock.FACING);
+        List<BlockPos> cells = new ArrayList<>();
+        for (PlaneOffset offset : SigilFootprint.all(structureRadius)) {
+            cells.add(inPlane(worldPosition, face, offset));
+        }
+        return cells;
+    }
+
+    /**
+     * Turn a 2D offset in the drawing's plane into a world position.
+     *
+     * <p>The plane is whichever two axes aren't the face's. A floor sigil spreads
+     * across X and Z, a north wall across X and Y.
+     */
+    public static BlockPos inPlane(BlockPos origin, Direction face, PlaneOffset offset) {
+        return switch (face.getAxis()) {
+            case Y -> origin.offset(offset.a(), 0, offset.b());
+            case X -> origin.offset(0, offset.a(), offset.b());
+            case Z -> origin.offset(offset.a(), offset.b(), 0);
+        };
+    }
+
+    /** Something in the ring changed. The core recomputes next time it's asked. */
+    public void invalidateStructure() {
+        intact = null;
+        setChanged();
+    }
+
+    /** Tell our core, if we have one, that we changed. */
+    private void notifyCore() {
+        if (corePos != null && level instanceof ServerLevel server
+                && server.getBlockEntity(corePos) instanceof WorldSigilBlockEntity core) {
+            core.invalidateStructure();
+        }
+    }
+
+    /**
+     * Is every cell of the ring present, ours, and alive?
+     *
+     * <p>Cached, because this walks the whole footprint and the answer changes
+     * only when a cell is broken or washed — both of which call
+     * {@link #invalidateStructure()}. That is the roadmap's rule for this phase:
+     * scan on change, cache the result, invalidate on a block update inside the
+     * footprint.
+     */
+    public boolean structureIntact(ServerLevel level) {
+        if (structureRadius <= 0) {
+            return true; // a lone sigil is trivially whole
+        }
+        if (intact != null) {
+            return intact;
+        }
+        Direction face = getBlockState().getValue(WorldSigilBlock.FACING);
+        boolean whole = true;
+        for (PlaneOffset offset : SigilFootprint.ring(structureRadius)) {
+            BlockPos cell = inPlane(worldPosition, face, offset);
+            if (!(level.getBlockEntity(cell) instanceof WorldSigilBlockEntity member)
+                    || !worldPosition.equals(member.corePos)
+                    || member.integrity().inert()) {
+                whole = false;
+                break;
+            }
+        }
+        intact = whole;
+        return whole;
+    }
+
+    /** Remove every member of this ring. Called when the core is peeled off. */
+    public void dissolveStructure(ServerLevel level) {
+        if (structureRadius <= 0) {
+            return;
+        }
+        Direction face = getBlockState().getValue(WorldSigilBlock.FACING);
+        for (PlaneOffset offset : SigilFootprint.ring(structureRadius)) {
+            BlockPos cell = inPlane(worldPosition, face, offset);
+            if (level.getBlockEntity(cell) instanceof WorldSigilBlockEntity member
+                    && worldPosition.equals(member.corePos)) {
+                member.corePos = null; // stop it invalidating a core that's going away
+                level.removeBlock(cell, false);
+            }
+        }
+        structureRadius = 0;
     }
 
     // ------------------------------------------------------------------ the loop
@@ -117,7 +251,14 @@ public class WorldSigilBlockEntity extends BlockEntity {
     }
 
     private void evaluate(ServerLevel level, CircuitSite site, CircuitCompletion trigger) {
-        boolean closed = trigger.isClosed(site);
+        // A broken circle does nothing at all, and finding out costs one cached
+        // boolean in the ordinary case.
+        if (!structureIntact(level)) {
+            return;
+        }
+        boolean closed = structureRadius > 0
+                ? trigger.isClosedAnywhere(level, footprint(), site.face(), structureRadius)
+                : trigger.isClosed(site);
         if (latch.advance(closed, level.getGameTime(), CircuitLatch.DEFAULT_COOLDOWN_TICKS)) {
             fire(level);
         }
@@ -167,7 +308,8 @@ public class WorldSigilBlockEntity extends BlockEntity {
     }
 
     private CircuitSite site(ServerLevel level) {
-        return new CircuitSite(level, worldPosition, getBlockState().getValue(WorldSigilBlock.FACING));
+        return new CircuitSite(level, worldPosition,
+                getBlockState().getValue(WorldSigilBlock.FACING), structureRadius);
     }
 
     private CircuitCompletion completion() {
@@ -226,6 +368,9 @@ public class WorldSigilBlockEntity extends BlockEntity {
         if (inkGradeId != null) {
             sheet.set(SigilsComponents.INK_GRADE.get(), inkGradeId);
         }
+        if (structureRadius > 0) {
+            sheet.set(SigilsComponents.SIGIL_RADIUS.get(), structureRadius);
+        }
         return sheet;
     }
 
@@ -261,6 +406,10 @@ public class WorldSigilBlockEntity extends BlockEntity {
         integrity = updated;
         setChanged(); // always: it has to survive a save, packet or no packet
 
+        // A washed arc breaks the circle, and the core is the only thing that
+        // needs to know. One call, and only when the visible state changes anyway.
+        notifyCore();
+
         if (before == updated.wearStep()) {
             return; // nothing anyone could see changed
         }
@@ -291,6 +440,7 @@ public class WorldSigilBlockEntity extends BlockEntity {
         super.setRemoved();
         if (level instanceof ServerLevel server) {
             SigilIndex.of(server).remove(worldPosition);
+            notifyCore();
         }
     }
 
@@ -307,6 +457,10 @@ public class WorldSigilBlockEntity extends BlockEntity {
         }
         output.putFloat("integrity", integrity.value());
         output.putString("trigger", triggerId.toString());
+        if (corePos != null) {
+            output.putLong("core", corePos.asLong());
+        }
+        output.putInt("structure_radius", structureRadius);
         output.putBoolean("closed", latch.closed());
         output.putLong("ready_at", latch.readyAt());
     }
@@ -322,6 +476,10 @@ public class WorldSigilBlockEntity extends BlockEntity {
         Identifier parsed = Identifier.tryParse(trigger);
         triggerId = parsed == null ? Circuits.DEFAULT : parsed;
         completion = null;
+
+        corePos = input.getLong("core").map(BlockPos::of).orElse(null);
+        structureRadius = input.getIntOr("structure_radius", 0);
+        intact = null; // recompute after a load; the ring may have changed while away
 
         latch.restore(input.getBooleanOr("closed", false), input.getLongOr("ready_at", 0L));
     }

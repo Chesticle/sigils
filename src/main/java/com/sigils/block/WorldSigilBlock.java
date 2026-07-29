@@ -243,6 +243,20 @@ public class WorldSigilBlock extends BaseEntityBlock {
                                           BlockPos pos, Player player) {
         SigilIntegrity integrity = sigil.integrity();
 
+        // An arc of somebody's circle. Scraping it off breaks the ring and gives
+        // you nothing — the spell was never on this cell.
+        if (sigil.isMember()) {
+            level.removeBlock(pos, false);
+            level.playSound(null, pos, SoundEvents.ITEM_FRAME_REMOVE_ITEM,
+                    SoundSource.BLOCKS, 0.8f, 1.2f);
+            player.sendSystemMessage(
+                    Component.translatable("message.sigils.sigil.peeled_member"));
+            return InteractionResult.CONSUME;
+        }
+        if (sigil.isCore()) {
+            sigil.dissolveStructure(level);
+        }
+
         ItemStack recovered;
         String message;
         if (integrity.intact()) {

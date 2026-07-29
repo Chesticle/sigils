@@ -156,6 +156,13 @@ public final class DraftInscriber {
         context.inkGrade().ifPresent(grade ->
                 inscribed.set(SigilsComponents.INK_GRADE.get(), grade.id()));
 
+        // How far this pen can lay out a circle. Absent on a feather-drawn sheet,
+        // which is how a single-cell sigil stays the default with no branch here.
+        int reach = context.pen().maxWorldSigilRadius();
+        if (reach > 0) {
+            inscribed.set(SigilsComponents.SIGIL_RADIUS.get(), reach);
+        }
+
         if (parchment.isEmpty()) {
             menu.setParchment(inscribed);
         } else if (!serverPlayer.getInventory().add(inscribed)) {

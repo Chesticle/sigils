@@ -22,7 +22,14 @@ public final class TimerCompletion implements CircuitCompletion {
 
     @Override
     public boolean isClosed(CircuitSite site) {
-        long phase = Math.floorMod(site.gameTime() + site.origin().hashCode(), period);
+        // Two sigils side by side should not fire in lockstep, so the phase comes
+        // from the position — EXCEPT inside a structure, where every cell must
+        // agree. A hundred cells each on their own phase means some cell is closed
+        // at almost every moment, the ring never opens, and the latch never sees a
+        // rising edge: a circle on a timer that silently never fires.
+        long phase = site.radius() > 0
+                ? Math.floorMod(site.gameTime(), period)
+                : Math.floorMod(site.gameTime() + site.origin().hashCode(), period);
         return phase >= period / 2;
     }
 

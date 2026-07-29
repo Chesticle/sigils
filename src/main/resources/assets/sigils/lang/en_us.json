@@ -25,6 +25,8 @@
   "message.sigils.sigil.peeled_clean": "The sheet comes away clean, the spell still on it.",
   "message.sigils.sigil.peeled_spoiled": "The drawing is too far gone. The sheet survives; the spell doesn't.",
   "message.sigils.sigil.peeled_nothing": "There's nothing left worth saving.",
+  "message.sigils.sigil.peeled_member": "You scrape away part of the circle.",
+  "message.sigils.sigil.circle_drawn": "The circle closes — radius %s.",
   "block.sigils.spell_press": "Spell Press",
   "message.sigils.press.ready": "Ready to print. %s units of ink left.",
   "message.sigils.press.no_template": "No inscribed parchment loaded.",

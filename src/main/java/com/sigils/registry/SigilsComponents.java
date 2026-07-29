@@ -28,6 +28,12 @@ public final class SigilsComponents {
                     .persistent(CompiledSpellCodecs.CODEC)
                     .networkSynchronized(CompiledSpellCodecs.STREAM_CODEC));
 
+    /** Largest world sigil the pen that drew this could lay out. Absent means 0. */
+    public static final Supplier<DataComponentType<Integer>> SIGIL_RADIUS =
+            COMPONENTS.registerComponentType("sigil_radius", builder -> builder
+                    .persistent(Codec.intRange(0, 64))
+                    .networkSynchronized(ByteBufCodecs.VAR_INT));
+
     /** Which ink grade a spell was inscribed with — the sketchbook's gate. */
     public static final Supplier<DataComponentType<String>> INK_GRADE =
             COMPONENTS.registerComponentType("ink_grade", builder -> builder

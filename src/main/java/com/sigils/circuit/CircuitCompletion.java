@@ -1,5 +1,11 @@
 package com.sigils.circuit;
 
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.level.Level;
+
+import java.util.List;
+
 /**
  * The one question every trigger answers: is the ring closed?
  *
@@ -42,5 +48,27 @@ public interface CircuitCompletion {
      */
     default int pollInterval() {
         return 4;
+    }
+
+    /**
+     * Is the circuit closed at <em>any</em> of these cells?
+     *
+     * <p>A multiblock sigil is closed when anything closes any part of it — step
+     * on the ring anywhere and the circle wakes. The default composes
+     * {@link #isClosed} and is correct for every trigger; override it only when
+     * asking once about the whole footprint is cheaper than asking N times, which
+     * for anything that queries entities it very much is.
+     *
+     * @param footprint every cell, core first; never empty
+     * @param radius    the structure's ring radius, passed on to each site
+     */
+    default boolean isClosedAnywhere(Level level, List<BlockPos> footprint,
+                                     Direction face, int radius) {
+        for (BlockPos cell : footprint) {
+            if (isClosed(new CircuitSite(level, cell, face, radius))) {
+                return true;
+            }
+        }
+        return false;
     }
 }
