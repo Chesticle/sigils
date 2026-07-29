@@ -72,6 +72,7 @@
   "screen.sigils.drafting.glyph_detail": "%s · complexity %s · ink %s",
   "screen.sigils.drafting.locked_complexity": "Needs a pen that draws complexity %s — this one draws %s",
   "screen.sigils.drafting.locked_unknown": "You haven't learned this glyph.",
+  "message.sigils.learned.tablet": "The lines settle in your memory. You have learned %s.",
   "screen.sigils.drafting.ink_graded": "Ink %s / %s (%s)",
   "screen.sigils.drafting.fidelity_preview": "Hand %s → recorded %s",
   "screen.sigils.drafting.locked_no_pen": "There's no pen in the table.",

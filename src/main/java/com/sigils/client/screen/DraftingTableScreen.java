@@ -1,5 +1,6 @@
 package com.sigils.client.screen;
 
+import com.sigils.registry.SigilsGlyphs;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
@@ -32,6 +33,7 @@ import com.sigils.core.glyph.GlyphRole;
 import com.sigils.draft.DraftContext;
 import com.sigils.menu.DraftingTableMenu;
 import com.sigils.net.SpellDraftPayload;
+import com.sigils.client.ClientKnowledge;
 
 /**
  * The drafting table's canvas.
@@ -135,7 +137,7 @@ public class DraftingTableScreen extends AbstractContainerScreen<DraftingTableMe
         DraftContext context = menu.context();
         catalogue = ClientGlyphs.snapshot();
         session = new DraftSession(catalogue.lookup(), context.limits());
-        palette = catalogue.palette(context.limits(), context.hasPen());
+        palette = catalogue.palette(context.limits(), context.hasPen(), ClientKnowledge.get());
 
         addRenderableWidget(Button.builder(
                         Component.translatable("screen.sigils.drafting.clear"),
@@ -190,7 +192,7 @@ public class DraftingTableScreen extends AbstractContainerScreen<DraftingTableMe
         if (recorder == null) {
             // The pen, ink or paper can change while the screen is open.
             session.limits(context.limits());
-            palette = catalogue.palette(context.limits(), context.hasPen());
+            palette = catalogue.palette(context.limits(), context.hasPen(), ClientKnowledge.get());
 
             primaryButton.setMessage(Component.translatable("screen.sigils.drafting.trace"));
             primaryButton.active = context.ready() && session.validation().valid()
@@ -419,7 +421,7 @@ public class DraftingTableScreen extends AbstractContainerScreen<DraftingTableMe
 
         // "sigils:crest_fire" -> "glyph.sigils.crest_fire", so a datapack-added
         // glyph gets a proper name from one lang key and no code.
-        lines.add(Component.translatable("glyph." + glyph.id().replace(':', '.'))
+        lines.add(Component.translatable(SigilsGlyphs.nameKey(glyph.id()))
                 .withStyle(entry.locked() ? ChatFormatting.DARK_GRAY : ChatFormatting.WHITE));
 
         lines.add(Component.translatable("screen.sigils.drafting.glyph_detail",

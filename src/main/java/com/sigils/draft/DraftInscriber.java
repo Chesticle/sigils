@@ -1,7 +1,9 @@
 package com.sigils.draft;
 
 import com.sigils.core.draft.DraftQuality;
+import com.sigils.core.knowledge.KnownGlyphs;
 import com.sigils.core.spell.*;
+import com.sigils.knowledge.SigilsKnowledge;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
@@ -89,6 +91,18 @@ public final class DraftInscriber {
             Sigils.LOGGER.debug("Rejected draft from {}: {}",
                     serverPlayer.getName().getString(), validation.errors());
             return;
+        }
+
+        // 5b. Every glyph has to be one this player has actually learned. The
+        //     palette greys these out; a palette is not a permission system, and
+        //     a packet is whatever the sender chose to send.
+        KnownGlyphs known = SigilsKnowledge.effective(serverPlayer);
+        for (GlyphInstance placement : placements) {
+            if (!known.knows(placement.glyphId())) {
+                Sigils.LOGGER.debug("Rejected draft from {}: unlearned glyph {}",
+                        serverPlayer.getName().getString(), placement.glyphId());
+                return;
+            }
         }
 
         // 6. Could they have afforded it?

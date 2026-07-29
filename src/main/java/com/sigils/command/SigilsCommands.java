@@ -2,6 +2,7 @@ package com.sigils.command;
 
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.sigils.cast.CastContext;
 import com.sigils.cast.SpellCaster;
 import com.sigils.cast.SpellCasting;
@@ -18,8 +19,11 @@ import com.sigils.core.particle.ProfileLookup;
 import com.sigils.core.particle.SpellVisuals;
 import com.sigils.core.spell.CompiledSpell;
 import com.sigils.core.spell.ValidationResult;
+import com.sigils.knowledge.KnowledgeSources;
+import com.sigils.knowledge.SigilsKnowledge;
 import com.sigils.registry.*;
 import net.minecraft.ChatFormatting;
+import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -29,17 +33,27 @@ import com.sigils.circuit.CircuitCompletion;
 import com.sigils.circuit.CircuitSite;
 import com.sigils.circuit.Circuits;
 import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.commands.Commands;
+import com.mojang.brigadier.suggestion.Suggestions;
+import com.mojang.brigadier.suggestion.SuggestionsBuilder;
+
 import net.minecraft.commands.SharedSuggestionProvider;
+import net.minecraft.server.level.ServerPlayer;
+
+import java.util.Collection;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+
+import com.sigils.core.knowledge.KnownGlyphs;
+import com.sigils.registry.SigilsGlyphs;
+import net.minecraft.commands.Commands;
 import net.minecraft.core.Registry;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.permissions.Permissions;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import com.mojang.brigadier.arguments.FloatArgumentType;
-import java.util.List;
+
 import java.util.Optional;
 
 import com.sigils.core.element.ElementalMixture;
@@ -100,6 +114,27 @@ public final class SigilsCommands {
                                 .executes(SigilsCommands::listPens))
                         .then(Commands.literal("placed")
                                 .executes(SigilsCommands::listPlaced))
+                        .then(Commands.literal("knowledge")
+                                .executes(context -> knowledgeReport(context,
+                                        List.of(context.getSource().getPlayerOrException())))
+                                .then(Commands.literal("of")
+                                        .then(Commands.argument("targets", EntityArgument.players())
+                                                .executes(context -> knowledgeReport(context,
+                                                        EntityArgument.getPlayers(context, "targets")))))
+                                .then(Commands.literal("learn")
+                                        .then(Commands.argument("targets", EntityArgument.players())
+                                                .then(Commands.literal("all")
+                                                        .executes(context -> teachAll(context, true)))
+                                                .then(Commands.argument("glyph", StringArgumentType.greedyString())
+                                                        .suggests(SigilsCommands::suggestGlyphs)
+                                                        .executes(context -> teachOne(context, true)))))
+                                .then(Commands.literal("forget")
+                                        .then(Commands.argument("targets", EntityArgument.players())
+                                                .then(Commands.literal("all")
+                                                        .executes(context -> teachAll(context, false)))
+                                                .then(Commands.argument("glyph", StringArgumentType.greedyString())
+                                                        .suggests(SigilsCommands::suggestGlyphs)
+                                                        .executes(context -> teachOne(context, false))))))
                         .then(Commands.literal("circuit")
                                 .executes(context -> circuit(context,
                                         BlockPos.containing(context.getSource().getPosition())))
@@ -434,6 +469,89 @@ public final class SigilsCommands {
                 .withStyle(ChatFormatting.DARK_GRAY), false);
 
         return closedCount;
+    }
+
+    /** Suggests every glyph id in the registry, so nobody has to type one twice. */
+    private static CompletableFuture<Suggestions> suggestGlyphs(
+            CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) {
+        Registry<GlyphDefinition> registry =
+                context.getSource().registryAccess().lookupOrThrow(SigilsRegistries.GLYPH);
+        return SharedSuggestionProvider.suggest(
+                registry.keySet().stream().map(Identifier::toString).sorted().toList(),
+                builder);
+    }
+
+    /**
+     * What each player knows, and where each glyph came from.
+     *
+     * <p>The innate/learned split is the whole value of this output: a glyph
+     * that shows as innate when you expected it learned means the tag is wrong,
+     * and a glyph that shows as learned when you expected it innate means it was
+     * granted before the tag existed. Both have happened.
+     */
+    private static int knowledgeReport(CommandContext<CommandSourceStack> context,
+                                       Collection<ServerPlayer> targets) {
+        CommandSourceStack source = context.getSource();
+        KnownGlyphs innate = SigilsGlyphs.innate(source.registryAccess());
+        int total = 0;
+
+        for (ServerPlayer player : targets) {
+            KnownGlyphs effective = SigilsKnowledge.effective(player);
+            total += effective.size();
+
+            source.sendSuccess(() -> Component.literal(String.format(
+                    "%s knows %d glyph(s)  (%d innate)",
+                    player.getName().getString(), effective.size(), innate.size())), false);
+
+            for (String glyphId : effective.sorted()) {
+                boolean free = innate.knows(glyphId);
+                source.sendSuccess(() -> Component.literal(
+                                String.format("  %-28s %s", glyphId, free ? "innate" : "learned"))
+                        .withStyle(free ? ChatFormatting.DARK_GRAY : ChatFormatting.WHITE), false);
+            }
+        }
+        return total;
+    }
+
+    /** {@code /sigils knowledge learn|forget <targets> <glyph>} */
+    private static int teachOne(CommandContext<CommandSourceStack> context, boolean learn)
+            throws CommandSyntaxException {
+        // greedyString() takes the rest of the line literally, trailing spaces
+        // included. Nobody types one on purpose; everybody types one eventually.
+        String glyphId = StringArgumentType.getString(context, "glyph").trim();
+        return apply(context, learn, List.of(glyphId));
+    }
+
+    /** {@code /sigils knowledge learn|forget <targets> all} */
+    private static int teachAll(CommandContext<CommandSourceStack> context, boolean learn)
+            throws CommandSyntaxException {
+        Registry<GlyphDefinition> registry =
+                context.getSource().registryAccess().lookupOrThrow(SigilsRegistries.GLYPH);
+        return apply(context, learn,
+                registry.keySet().stream().map(Identifier::toString).toList());
+    }
+
+    private static int apply(CommandContext<CommandSourceStack> context,
+                             boolean learn, Collection<String> glyphIds)
+            throws CommandSyntaxException {
+        CommandSourceStack source = context.getSource();
+        int changed = 0;
+
+        for (ServerPlayer player : EntityArgument.getPlayers(context, "targets")) {
+            for (String glyphId : glyphIds) {
+                boolean did = learn
+                        ? SigilsKnowledge.grant(player, glyphId, KnowledgeSources.COMMAND)
+                        : SigilsKnowledge.revoke(player, glyphId);
+                if (did) {
+                    changed++;
+                }
+            }
+        }
+
+        int finalChanged = changed;
+        source.sendSuccess(() -> Component.literal(
+                (learn ? "Taught " : "Revoked ") + finalChanged + " glyph(s)"), false);
+        return changed;
     }
 
     /** Lists every ink grade and the item it binds. */

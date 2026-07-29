@@ -1,6 +1,7 @@
 package com.sigils.client.draft;
 
 import com.sigils.core.draft.GlyphAvailability;
+import com.sigils.core.knowledge.KnownGlyphs;
 import net.minecraft.client.Minecraft;
 
 import java.util.ArrayList;
@@ -48,14 +49,14 @@ public final class ClientGlyphs {
 
     /**
      * Everything in the registry, in palette order, each tagged with whether
-     * this pen can draw it.
+     * this pen can draw it and whether this player has learned it.
      *
      * <p>Nothing is filtered out. A glyph the player can't use is more useful
      * on screen than absent: it tells them the glyph exists and what it would
      * take to draw it, which is the difference between progression and a bug
      * report.
      */
-    public List<PaletteEntry> palette(DraftLimits limits, boolean penPresent) {
+    public List<PaletteEntry> palette(DraftLimits limits, boolean penPresent, KnownGlyphs known) {
         List<Glyph> sorted = new ArrayList<>(glyphs.values());
         sorted.sort(Comparator
                 .comparingInt((Glyph g) -> g.role().ordinal())
@@ -63,7 +64,8 @@ public final class ClientGlyphs {
 
         List<PaletteEntry> entries = new ArrayList<>(sorted.size());
         for (Glyph glyph : sorted) {
-            entries.add(new PaletteEntry(glyph, GlyphAvailability.of(glyph, limits, penPresent)));
+            entries.add(new PaletteEntry(glyph,
+                    GlyphAvailability.of(glyph, limits, penPresent, known)));
         }
         return List.copyOf(entries);
     }

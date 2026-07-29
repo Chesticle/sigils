@@ -19,6 +19,11 @@ public final class SigilsNetwork {
     public static void register(RegisterPayloadHandlersEvent event) {
         PayloadRegistrar registrar = event.registrar("1"); // network version string
         registrar.playToClient(
+                KnowledgePayload.TYPE,
+                KnowledgePayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(
+                        () -> com.sigils.client.ClientKnowledge.accept(payload)));
+        registrar.playToClient(
                 SigilEmitterPayload.TYPE,
                 SigilEmitterPayload.STREAM_CODEC,
                 (payload, context) -> context.enqueueWork(

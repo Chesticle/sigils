@@ -1,0 +1,8 @@
+{
+  "replace": false,
+  "values": [
+    "sigils:ring_basic",
+    "sigils:crest_fire",
+    "sigils:mod_at_target"
+  ]
+}

@@ -3,6 +3,8 @@ package com.sigils;
 import com.sigils.cast.SigilsCastEvents;
 import com.sigils.circuit.Circuits;
 import com.sigils.core.SigilsCore;
+import com.sigils.knowledge.KnowledgeSources;
+import com.sigils.registry.SigilsAttachments;
 import com.sigils.registry.SigilsRegistries;
 import net.minecraft.resources.Identifier;
 import net.neoforged.bus.api.IEventBus;
@@ -33,7 +35,9 @@ public final class Sigils {
         com.sigils.block.SigilsBlocks.register(modBus);
         // Not a DeferredRegister — this is a plain static table, so it can go
         // anywhere in the constructor. It sits here to keep registration together.
+        SigilsAttachments.register(modBus);
         Circuits.bootstrap();
+        KnowledgeSources.bootstrap();
         com.sigils.item.SigilsItems.register(modBus);
         com.sigils.menu.SigilsMenus.register(modBus);
         com.sigils.registry.SigilsComponents.register(modBus);
