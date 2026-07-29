@@ -1,5 +1,6 @@
 package com.sigils.item;
 
+import com.sigils.registry.SigilsGlyphs;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.BlockItem;
@@ -66,6 +67,10 @@ public final class SigilsItems {
     public static final DeferredItem<Item> NETHERITE_INK =
             ITEMS.registerSimpleItem("netherite_ink", props -> props.stacksTo(16));
 
+    /** One glyph, carved in stone. Found, never crafted. */
+    public static final DeferredItem<GlyphTabletItem> GLYPH_TABLET =
+            ITEMS.registerItem("glyph_tablet", GlyphTabletItem::new, props -> props.stacksTo(16));
+
     /** A book of finished spells. Only takes permanent ink. */
     public static final DeferredItem<SketchbookItem> SKETCHBOOK =
             ITEMS.registerItem("sketchbook", SketchbookItem::new, props -> props.stacksTo(1));
@@ -98,6 +103,12 @@ public final class SigilsItems {
                 output.accept(NETHERITE_INK.get());
                 output.accept(INK_VIAL.get());
                 output.accept(SKETCHBOOK.get());
+                // One tablet per glyph, straight off the registry. A datapack
+                // that adds a glyph gets a tablet here with no code written for
+                // it — the same test the palette passes, applied to an item.
+                for (String glyphId : SigilsGlyphs.ids(parameters.holders())) {
+                    output.accept(GlyphTabletItem.of(glyphId));
+                }
             })
             .build());
 

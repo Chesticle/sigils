@@ -28,6 +28,22 @@ public final class SigilsComponents {
                     .persistent(CompiledSpellCodecs.CODEC)
                     .networkSynchronized(CompiledSpellCodecs.STREAM_CODEC));
 
+    /**
+     * The glyph a tablet teaches, as a fully-qualified id.
+     *
+     * <p>A plain string rather than an {@code Identifier}, matching
+     * {@code INK_GRADE} beside it and matching what
+     * {@link com.sigils.core.knowledge.KnownGlyphs} stores. The id has to be
+     * checked against the live registry at use time regardless — a datapack can
+     * be removed between a tablet being generated in a chest and a player
+     * picking it up — so parse-time validation would buy a guarantee that
+     * cannot be relied on and would cost a conversion at every call site.
+     */
+    public static final Supplier<DataComponentType<String>> GLYPH_REF =
+            COMPONENTS.registerComponentType("glyph_ref", builder -> builder
+                    .persistent(Codec.STRING)
+                    .networkSynchronized(ByteBufCodecs.stringUtf8(128)));
+
     /** Largest world sigil the pen that drew this could lay out. Absent means 0. */
     public static final Supplier<DataComponentType<Integer>> SIGIL_RADIUS =
             COMPONENTS.registerComponentType("sigil_radius", builder -> builder

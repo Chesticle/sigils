@@ -4,15 +4,11 @@ import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.resources.Identifier;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 import com.sigils.core.glyph.Glyph;
 import net.minecraft.core.Holder;
-
-import java.util.HashSet;
-import java.util.Set;
+import net.minecraft.core.HolderLookup;
 
 import com.sigils.core.knowledge.KnownGlyphs;
 import com.sigils.core.glyph.GlyphLookup;
@@ -52,6 +48,34 @@ public final class SigilsGlyphs {
             }
         }
         return ids.isEmpty() ? KnownGlyphs.NONE : new KnownGlyphs(ids);
+    }
+
+    /**
+     * Whether a glyph id resolves to something the datapacks actually loaded.
+     *
+     * <p>Walks the registry, which is more work than a lookup needs — but this
+     * runs once per right-click rather than per frame, and doing it this way
+     * means the check shares its definition of "exists" with {@link #loadAll}
+     * instead of having a second, subtly different one.
+     */
+    public static boolean exists(RegistryAccess access, String glyphId) {
+        return loadAll(access).containsKey(glyphId);
+    }
+
+    /**
+     * Every glyph id in the registry, sorted.
+     *
+     * <p>Takes a {@link HolderLookup.Provider} rather than a
+     * {@link RegistryAccess} because the creative tab is handed the weaker of
+     * the two, and this is the only caller that can't offer the stronger one.
+     */
+    public static List<String> ids(HolderLookup.Provider registries) {
+        return registries.lookup(SigilsRegistries.GLYPH)
+                .map(lookup -> lookup.listElementIds()
+                        .map(key -> key.identifier().toString())
+                        .sorted()
+                        .toList())
+                .orElseGet(List::of);
     }
 
     /**

@@ -1,0 +1,7 @@
+{
+  "role": "modifier",
+  "strokes": [[[0.15, 0.7], [0.5, 0.25], [0.85, 0.7]]],
+  "complexity": 2,
+  "ink_cost": 1.0,
+  "operation": { "type": "scale", "factor": 1.25 }
+}

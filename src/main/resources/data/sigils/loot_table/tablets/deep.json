@@ -1,0 +1,43 @@
+{
+  "type": "minecraft:chest",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "sigils:glyph_tablet",
+          "weight": 4,
+          "functions": [
+            {
+              "function": "minecraft:set_components",
+              "components": { "sigils:glyph_ref": "sigils:mod_beam" }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "sigils:glyph_tablet",
+          "weight": 3,
+          "functions": [
+            {
+              "function": "minecraft:set_components",
+              "components": { "sigils:glyph_ref": "sigils:crest_air" }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "sigils:glyph_tablet",
+          "weight": 1,
+          "functions": [
+            {
+              "function": "minecraft:set_components",
+              "components": { "sigils:glyph_ref": "sigils:mod_grand" }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
