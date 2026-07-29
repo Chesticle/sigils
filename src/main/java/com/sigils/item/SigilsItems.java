@@ -79,6 +79,18 @@ public final class SigilsItems {
     public static final DeferredItem<InkVialItem> INK_VIAL =
             ITEMS.registerItem("ink_vial", InkVialItem::new, props -> props.stacksTo(1));
 
+    public static final DeferredItem<BlockItem> SILVERWOOD_LOG =
+            ITEMS.registerSimpleBlockItem(SigilsBlocks.SILVERWOOD_LOG);
+
+    public static final DeferredItem<BlockItem> SILVERWOOD_LEAVES =
+            ITEMS.registerSimpleBlockItem(SigilsBlocks.SILVERWOOD_LEAVES);
+
+    public static final DeferredItem<BlockItem> SILVERWOOD_SAPLING =
+            ITEMS.registerSimpleBlockItem(SigilsBlocks.SILVERWOOD_SAPLING);
+
+    public static final DeferredItem<BlockItem> SAP_TAP =
+            ITEMS.registerSimpleBlockItem(SigilsBlocks.SAP_TAP);
+
     public static final DeferredItem<BlockItem> DRAFTING_TABLE =   // BlockItem, not Item
             ITEMS.registerSimpleBlockItem(SigilsBlocks.DRAFTING_TABLE);
 
@@ -89,6 +101,10 @@ public final class SigilsItems {
             .title(Component.translatable("itemGroup.sigils"))
             .icon(() -> new ItemStack(PARCHMENT.get()))
             .displayItems((parameters, output) -> {
+                output.accept(SILVERWOOD_LOG.get());
+                output.accept(SILVERWOOD_LEAVES.get());
+                output.accept(SILVERWOOD_SAPLING.get());
+                output.accept(SAP_TAP.get());
                 output.accept(DRAFTING_TABLE.get());
                 output.accept(SPELL_PRESS.get());
                 output.accept(PARCHMENT.get());

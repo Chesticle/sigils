@@ -1,6 +1,15 @@
 package com.sigils.block;
 
 import net.minecraft.core.registries.Registries;
+import net.minecraft.world.level.block.LeavesBlock;
+import net.minecraft.world.level.block.RotatedPillarBlock;
+import net.minecraft.world.level.block.SaplingBlock;
+import net.minecraft.world.level.block.grower.TreeGrower;
+import net.minecraft.world.level.material.PushReaction;
+
+import java.util.Optional;
+
+import com.sigils.worldgen.SigilsFeatures;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -22,6 +31,61 @@ public final class SigilsBlocks {
 
     public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITIES =
             DeferredRegister.create(Registries.BLOCK_ENTITY_TYPE, Sigils.MOD_ID);
+
+    /**
+     * What a sapling turns into. Named once, here, so the block and the datapack
+     * can't drift apart.
+     */
+    public static final TreeGrower SILVERWOOD_GROWER = new TreeGrower(
+            "sigils:silverwood",
+            Optional.empty(),                             // no mega variant
+            Optional.of(SigilsFeatures.SILVERWOOD_TREE),  // the ordinary tree
+            Optional.empty());                            // no flowering variant
+
+    /** Pale, straight, and the only thing a tap will stick to. */
+    public static final DeferredBlock<RotatedPillarBlock> SILVERWOOD_LOG = BLOCKS.registerBlock(
+            "silverwood_log",
+            RotatedPillarBlock::new,
+            props -> props
+                    .mapColor(MapColor.QUARTZ)
+                    .strength(2.0f)
+                    .sound(SoundType.WOOD)
+                    .ignitedByLava());
+
+    public static final DeferredBlock<SilverwoodLeavesBlock> SILVERWOOD_LEAVES = BLOCKS.registerBlock(
+            "silverwood_leaves",
+            SilverwoodLeavesBlock::new,
+            props -> props
+                    .mapColor(MapColor.PLANT)
+                    .strength(0.2f)
+                    .randomTicks()
+                    .sound(SoundType.CHERRY_LEAVES)
+                    .noOcclusion()
+                    .isValidSpawn((state, level, pos, type) -> false)
+                    .isSuffocating((state, level, pos) -> false)
+                    .isViewBlocking((state, level, pos) -> false)
+                    .ignitedByLava()
+                    .pushReaction(PushReaction.DESTROY));
+
+    public static final DeferredBlock<SaplingBlock> SILVERWOOD_SAPLING = BLOCKS.registerBlock(
+            "silverwood_sapling",
+            props -> new SaplingBlock(SILVERWOOD_GROWER, props),
+            props -> props
+                    .noCollision()
+                    .randomTicks()
+                    .instabreak()
+                    .sound(SoundType.GRASS)
+                    .pushReaction(PushReaction.DESTROY));
+
+    public static final DeferredBlock<SapTapBlock> SAP_TAP = BLOCKS.registerBlock(
+            "sap_tap",
+            SapTapBlock::new,
+            props -> props
+                    .mapColor(MapColor.METAL)
+                    .strength(1.0f)
+                    .randomTicks()
+                    .noOcclusion()
+                    .sound(SoundType.COPPER));
 
     public static final DeferredBlock<Block> DRAFTING_TABLE = BLOCKS.registerBlock(
             "drafting_table",

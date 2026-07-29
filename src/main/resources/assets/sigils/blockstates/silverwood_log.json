@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "axis=y": { "model": "sigils:block/silverwood_log" },
+    "axis=x": { "model": "sigils:block/silverwood_log", "x": 90, "y": 90 },
+    "axis=z": { "model": "sigils:block/silverwood_log", "x": 90 }
+  }
+}
