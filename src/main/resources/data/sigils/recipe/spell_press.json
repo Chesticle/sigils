@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "I": "minecraft:iron_ingot",
+    "P": "minecraft:piston",
+    "S": "minecraft:smooth_stone",
+    "D": "sigils:drafting_table"
+  },
+  "pattern": [
+    "III",
+    "SPS",
+    "SDS"
+  ],
+  "result": { "id": "sigils:spell_press", "count": 1 }
+}

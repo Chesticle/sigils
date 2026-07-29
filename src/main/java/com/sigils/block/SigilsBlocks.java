@@ -52,11 +52,27 @@ public final class SigilsBlocks {
                     false,                      // OP-only NBT loading
                     DRAFTING_TABLE.get()));     // vararg of valid blocks
 
+    /** The piston-like printer. Full cube, so its face is sturdy enough to draw on. */
+    public static final DeferredBlock<SpellPressBlock> SPELL_PRESS = BLOCKS.registerBlock(
+            "spell_press",
+            SpellPressBlock::new,
+            props -> props
+                    .mapColor(MapColor.STONE)
+                    .strength(3.5f)
+                    .requiresCorrectToolForDrops()
+                    .sound(SoundType.STONE));
+
     public static final Supplier<BlockEntityType<WorldSigilBlockEntity>> WORLD_SIGIL_ENTITY =
             BLOCK_ENTITIES.register("world_sigil", () -> new BlockEntityType<>(
                     WorldSigilBlockEntity::new,
                     false,
                     WORLD_SIGIL.get()));
+
+    public static final Supplier<BlockEntityType<SpellPressBlockEntity>> SPELL_PRESS_ENTITY =
+            BLOCK_ENTITIES.register("spell_press", () -> new BlockEntityType<>(
+                    SpellPressBlockEntity::new,
+                    false,
+                    SPELL_PRESS.get()));
 
     /** Call from the mod constructor. */
     public static void register(IEventBus modBus) {

@@ -77,11 +77,15 @@ public final class SigilsItems {
     public static final DeferredItem<BlockItem> DRAFTING_TABLE =   // BlockItem, not Item
             ITEMS.registerSimpleBlockItem(SigilsBlocks.DRAFTING_TABLE);
 
+    public static final DeferredItem<BlockItem> SPELL_PRESS =
+            ITEMS.registerSimpleBlockItem(SigilsBlocks.SPELL_PRESS);
+
     public static final Supplier<CreativeModeTab> TAB = TABS.register("sigils", () -> CreativeModeTab.builder()
             .title(Component.translatable("itemGroup.sigils"))
             .icon(() -> new ItemStack(PARCHMENT.get()))
             .displayItems((parameters, output) -> {
                 output.accept(DRAFTING_TABLE.get());
+                output.accept(SPELL_PRESS.get());
                 output.accept(PARCHMENT.get());
                 output.accept(VELLUM.get());
                 output.accept(PEN.get());
