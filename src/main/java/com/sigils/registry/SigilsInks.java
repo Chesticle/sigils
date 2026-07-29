@@ -26,6 +26,17 @@ public final class SigilsInks {
     }
 
     /**
+     * Whether a grade id names an ink that resists water.
+     *
+     * <p>Null or unrecognised is {@code false} — a spell whose ink can't be proved
+     * gets the harsher answer, which is the same rule the sketchbook applies to
+     * parchment inscribed before the grade was recorded.
+     */
+    public static boolean isPermanent(RegistryAccess access, String gradeId) {
+        return gradeId != null && byId(access, gradeId).map(InkGrade::permanent).orElse(false);
+    }
+
+    /**
      * A grade by its own registry id rather than by item — what a vial needs,
      * since a vial's contents are a grade it remembers, not the item it is.
      */

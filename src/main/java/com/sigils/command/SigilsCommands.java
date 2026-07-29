@@ -51,6 +51,9 @@ import com.sigils.registry.PenTierDefinition;
 import com.sigils.registry.SigilsInks;
 import com.sigils.registry.SigilsPens;
 
+import com.sigils.block.SigilIndex;
+import com.sigils.block.WorldSigilBlockEntity;
+
 
 /**
  * Debug commands.
@@ -95,6 +98,8 @@ public final class SigilsCommands {
                                 .executes(SigilsCommands::checkDemoDraft))
                         .then(Commands.literal("pens")
                                 .executes(SigilsCommands::listPens))
+                        .then(Commands.literal("placed")
+                                .executes(SigilsCommands::listPlaced))
                         .then(Commands.literal("circuit")
                                 .executes(context -> circuit(context,
                                         BlockPos.containing(context.getSource().getPosition())))
@@ -346,6 +351,44 @@ public final class SigilsCommands {
         int bound = SigilsPens.table(source.registryAccess()).size();
         source.sendSuccess(() -> Component.literal(bound + " item(s) bound as pens"), false);
         return bound;
+    }
+
+    /** What the index believes, and the sigils near you. */
+    private static int listPlaced(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        ServerLevel level = source.getLevel();
+        SigilIndex index = SigilIndex.of(level);
+        BlockPos origin = BlockPos.containing(source.getPosition());
+
+        source.sendSuccess(() -> Component.literal(String.format(
+                        "%d sigil(s) loaded in %s, across %d chunk(s)",
+                        index.size(), level.dimension().identifier(), index.chunkCount()))
+                .withStyle(ChatFormatting.GOLD), false);
+
+        List<BlockPos> nearby = index.within(origin, 48);
+        for (BlockPos pos : nearby) {
+            if (!(level.getBlockEntity(pos) instanceof WorldSigilBlockEntity sigil)) {
+                // In the index but not in the world: a leak, and worth seeing.
+                source.sendSuccess(() -> Component.literal(
+                                "  " + pos.toShortString() + "  STALE ENTRY")
+                        .withStyle(ChatFormatting.RED), false);
+                continue;
+            }
+            String line = String.format("  %-18s %-18s integrity %.2f  wear %d  ink %s",
+                    pos.toShortString(),
+                    sigil.triggerId(),
+                    sigil.integrity().value(),
+                    sigil.integrity().wearStep(),
+                    sigil.inkGradeId() == null ? "unknown" : sigil.inkGradeId());
+            source.sendSuccess(() -> Component.literal(line)
+                    .withStyle(sigil.integrity().inert()
+                            ? ChatFormatting.DARK_GRAY : ChatFormatting.GRAY), false);
+        }
+
+        source.sendSuccess(() -> Component.literal(
+                        "  " + nearby.size() + " within 48 blocks")
+                .withStyle(ChatFormatting.DARK_GRAY), false);
+        return nearby.size();
     }
 
     /**

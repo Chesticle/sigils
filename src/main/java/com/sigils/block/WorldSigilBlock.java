@@ -1,14 +1,20 @@
 package com.sigils.block;
 
 import com.mojang.serialization.MapCodec;
+import com.sigils.core.sigil.SigilIntegrity;
+import com.sigils.item.SigilsItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.resources.Identifier;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelReader;
@@ -23,6 +29,7 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
+import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.level.redstone.Orientation;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
@@ -33,6 +40,10 @@ import javax.annotation.Nullable;
 import java.util.Map;
 
 import com.sigils.circuit.Circuits;
+
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.item.Items;
+import com.sigils.registry.SigilsPens;
 
 /**
  * A spell drawn onto the face of a block.
@@ -59,6 +70,18 @@ public class WorldSigilBlock extends BaseEntityBlock {
     /** How long the mark glows after casting. */
     public static final int FLASH_TICKS = 10;
 
+    /**
+     * How worn the drawing looks: 0 pristine, {@link SigilIntegrity#WEAR_STEPS} spent.
+     *
+     * <p>In the block state rather than only in the block entity, and that is the
+     * whole performance story of this part. The renderer reacts to block state
+     * changes for free; it does not react to a block entity field moving. Five
+     * buckets means a sigil's entire life is four visible transitions, so rain
+     * that would otherwise send fifty packets sends four.
+     */
+    public static final IntegerProperty WEAR =
+            IntegerProperty.create("wear", 0, SigilIntegrity.WEAR_STEPS);
+
     /** A one-pixel skin against the support face, in each of six orientations. */
     private static final Map<Direction, VoxelShape> SHAPES = Map.of(
             Direction.UP, Block.box(0, 0, 0, 16, 1, 16),
@@ -72,7 +95,8 @@ public class WorldSigilBlock extends BaseEntityBlock {
         super(properties);
         registerDefaultState(getStateDefinition().any()
                 .setValue(FACING, Direction.UP)
-                .setValue(LIT, false));
+                .setValue(LIT, false)
+                .setValue(WEAR, 0));
     }
 
     @Override
@@ -82,7 +106,7 @@ public class WorldSigilBlock extends BaseEntityBlock {
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(FACING, LIT);
+        builder.add(FACING, LIT, WEAR);
     }
 
     @Override
@@ -158,6 +182,95 @@ public class WorldSigilBlock extends BaseEntityBlock {
 
     // ---------------------------------------------------------------- interaction
 
+    /**
+     * Water wears it, a sponge kills it, a pen peels it off.
+     *
+     * <p>Three tools, one method, and a {@code PASS} for everything else so that
+     * holding a torch and right-clicking still places the torch.
+     */
+    @Override
+    protected InteractionResult useItemOn(ItemStack stack, BlockState state, Level level,
+                                          BlockPos pos, Player player, InteractionHand hand,
+                                          BlockHitResult hit) {
+
+        boolean bucket = stack.is(Items.WATER_BUCKET);
+        boolean sponge = stack.is(Items.SPONGE) || stack.is(Items.WET_SPONGE);
+        boolean pen = !level.isClientSide()
+                && SigilsPens.table(level.registryAccess()).containsKey(stack.getItem());
+
+        if (!bucket && !sponge && !pen) {
+            // NOT InteractionResult.PASS. useItemOn runs before useWithoutItem and
+            // gates it: only TRY_WITH_EMPTY_HAND hands control on. PASS means
+            // "handled, nothing happened", which silently eats the empty-hand
+            // interaction — and trigger cycling with it.
+            return InteractionResult.TRY_WITH_EMPTY_HAND;
+        }
+        if (level.isClientSide()) {
+            return InteractionResult.SUCCESS;
+        }
+        if (!(level.getBlockEntity(pos) instanceof WorldSigilBlockEntity sigil)
+                || !(level instanceof ServerLevel server)) {
+            return InteractionResult.PASS;
+        }
+
+        if (bucket) {
+            sigil.setIntegrity(sigil.integrity().washed(SigilIntegrity.WASH_BUCKET));
+            if (!player.hasInfiniteMaterials()) {
+                player.setItemInHand(hand, new ItemStack(Items.BUCKET));
+            }
+            splash(server, pos, 14);
+            server.playSound(null, pos, SoundEvents.BUCKET_EMPTY, SoundSource.BLOCKS, 1f, 1f);
+            return InteractionResult.CONSUME;
+        }
+
+        if (sponge) {
+            sigil.setIntegrity(sigil.integrity().washed(SigilIntegrity.WASH_SPONGE));
+            splash(server, pos, 24);
+            server.playSound(null, pos, SoundEvents.SPONGE_ABSORB, SoundSource.BLOCKS, 0.9f, 1.1f);
+            return InteractionResult.CONSUME;
+        }
+
+        return peel(sigil, server, pos, player);
+    }
+
+    /**
+     * Scrape the sigil off with a nib.
+     *
+     * <p>Three outcomes, because there are three integrity bands and each of them
+     * means something different about the sheet underneath.
+     */
+    private static InteractionResult peel(WorldSigilBlockEntity sigil, ServerLevel level,
+                                          BlockPos pos, Player player) {
+        SigilIntegrity integrity = sigil.integrity();
+
+        ItemStack recovered;
+        String message;
+        if (integrity.intact()) {
+            recovered = sigil.recoverSheet();
+            message = "message.sigils.sigil.peeled_clean";
+        } else if (!integrity.inert()) {
+            recovered = new ItemStack(SigilsItems.PARCHMENT.get());
+            message = "message.sigils.sigil.peeled_spoiled";
+        } else {
+            recovered = ItemStack.EMPTY;
+            message = "message.sigils.sigil.peeled_nothing";
+        }
+
+        level.removeBlock(pos, false);
+        if (!recovered.isEmpty() && !player.addItem(recovered)) {
+            player.drop(recovered, false);
+        }
+        level.playSound(null, pos, SoundEvents.ITEM_FRAME_REMOVE_ITEM, SoundSource.BLOCKS, 0.8f, 1.2f);
+        player.sendSystemMessage(Component.translatable(message));
+        return InteractionResult.CONSUME;
+    }
+
+    private static void splash(ServerLevel level, BlockPos pos, int count) {
+        level.sendParticles(ParticleTypes.SPLASH,
+                pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5,
+                count, 0.35, 0.3, 0.35, 0.08);
+    }
+
     @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos,
                                                Player player, BlockHitResult hit) {
@@ -166,7 +279,7 @@ public class WorldSigilBlock extends BaseEntityBlock {
         }
         if (!(level.getBlockEntity(pos) instanceof WorldSigilBlockEntity sigil)
                 || !(level instanceof ServerLevel server)) {
-            return InteractionResult.PASS;
+            return InteractionResult.TRY_WITH_EMPTY_HAND;
         }
 
         Identifier trigger = sigil.cycleTrigger(server);

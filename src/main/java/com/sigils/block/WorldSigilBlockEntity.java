@@ -1,5 +1,7 @@
 package com.sigils.block;
 
+import com.sigils.item.SigilsItems;
+import com.sigils.registry.SigilsComponents;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -8,6 +10,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -197,15 +200,33 @@ public class WorldSigilBlockEntity extends BlockEntity {
 
     // ------------------------------------------------------------- presentation
 
-    /** ARGB for the block colour handler. Client-side; reads the synced fields. */
-    public int decalColor(boolean active) {
+    /**
+     * The ink's raw RGB, or {@code -1} if it can't be determined.
+     *
+     * <p>This is now the <em>only</em> thing the renderer asks a sigil for, and it
+     * is written once at placement and never changed. Wear and the flash both live
+     * in the block state, where the renderer was already watching. A tint that
+     * depends on nothing mutable in a block entity cannot render stale.
+     */
+    public int inkTint() {
         if (level == null || inkGradeId == null) {
-            return SigilTint.FALLBACK;
+            return -1;
         }
         return SigilsInks.byId(level.registryAccess(), inkGradeId)
                 .map(InkGrade::tint)
-                .map(tint -> SigilTint.decal(tint, integrity.value(), active))
-                .orElse(SigilTint.FALLBACK);
+                .orElse(-1);
+    }
+
+    /** A sheet carrying this sigil's spell, for peeling it back off the wall. */
+    public ItemStack recoverSheet() {
+        ItemStack sheet = new ItemStack(SigilsItems.PARCHMENT.get());
+        if (spell != null) {
+            sheet.set(SigilsComponents.SPELL.get(), spell);
+        }
+        if (inkGradeId != null) {
+            sheet.set(SigilsComponents.INK_GRADE.get(), inkGradeId);
+        }
+        return sheet;
     }
 
     @Nullable
@@ -223,13 +244,54 @@ public class WorldSigilBlockEntity extends BlockEntity {
     }
 
     /** Part C sets this. Part B only ever reads it. */
+    /**
+     * Wear the sigil.
+     *
+     * <p>Called from three places that all have very different rates: a bucket
+     * (once), a sponge (once) and rain (repeatedly, for minutes). So the packet is
+     * spent only when something visible changed — a wear <em>step</em>, not a wear
+     * <em>value</em>. The float is still saved every time, because it's the real
+     * quantity and the block state is only a picture of it.
+     */
     public void setIntegrity(SigilIntegrity updated) {
-        this.integrity = updated;
-        sync();
+        if (level == null || level.isClientSide()) {
+            return;
+        }
+        int before = integrity.wearStep();
+        integrity = updated;
+        setChanged(); // always: it has to survive a save, packet or no packet
+
+        if (before == updated.wearStep()) {
+            return; // nothing anyone could see changed
+        }
+        // Read the state back rather than trusting the cached one: the flash may
+        // have changed LIT since this block entity last looked.
+        BlockState current = level.getBlockState(worldPosition);
+        level.setBlock(worldPosition,
+                current.setValue(WorldSigilBlock.WEAR, updated.wearStep()),
+                Block.UPDATE_CLIENTS);
     }
 
     public Identifier triggerId() {
         return triggerId;
+    }
+
+    // -------------------------------------------------------------------- index
+
+    @Override
+    public void onLoad() {
+        super.onLoad();
+        if (level instanceof ServerLevel server) {
+            SigilIndex.of(server).add(worldPosition);
+        }
+    }
+
+    @Override
+    public void setRemoved() {
+        super.setRemoved();
+        if (level instanceof ServerLevel server) {
+            SigilIndex.of(server).remove(worldPosition);
+        }
     }
 
     // -------------------------------------------------------------- persistence

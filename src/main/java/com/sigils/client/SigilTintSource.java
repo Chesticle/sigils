@@ -1,6 +1,7 @@
 package com.sigils.client;
 
 import com.sigils.block.WorldSigilBlock;
+import com.sigils.core.sigil.SigilIntegrity;
 import net.minecraft.client.color.block.BlockTintSource;
 import net.minecraft.client.renderer.block.BlockAndTintGetter;
 import net.minecraft.core.BlockPos;
@@ -33,9 +34,17 @@ public final class SigilTintSource implements BlockTintSource {
 
     @Override
     public int colorInWorld(BlockState state, BlockAndTintGetter level, BlockPos pos) {
-        return level.getBlockEntity(pos) instanceof WorldSigilBlockEntity sigil
-                ? sigil.decalColor(state.getValue(WorldSigilBlock.LIT))
-                : SigilTint.FALLBACK;
+        if (!(level.getBlockEntity(pos) instanceof WorldSigilBlockEntity sigil)) {
+            return SigilTint.FALLBACK;
+        }
+        int ink = sigil.inkTint();
+        if (ink < 0) {
+            return SigilTint.FALLBACK;
+        }
+        return SigilTint.decal(
+                ink,
+                SigilIntegrity.remainingAt(state.getValue(WorldSigilBlock.WEAR)),
+                state.getValue(WorldSigilBlock.LIT));
     }
 
     /**
@@ -45,6 +54,6 @@ public final class SigilTintSource implements BlockTintSource {
      */
     @Override
     public Set<Property<?>> relevantProperties() {
-        return Set.of(WorldSigilBlock.LIT);
+        return Set.of(WorldSigilBlock.LIT, WorldSigilBlock.WEAR);
     }
 }

@@ -22,7 +22,6 @@ import java.util.function.Consumer;
 
 import com.sigils.cast.CastContext;
 import com.sigils.cast.SpellCasting;
-import com.sigils.core.draft.InkGrade;
 import com.sigils.core.spell.BoundSpells;
 import com.sigils.core.spell.CompiledSpell;
 import com.sigils.draft.ParchmentGrades;
@@ -128,11 +127,7 @@ public class SketchbookItem extends Item {
 
     /** Whether the ink that drew this parchment is one a book will hold. */
     private static boolean permanent(RegistryAccess registries, ItemStack parchment) {
-        String grade = parchment.get(SigilsComponents.INK_GRADE.get());
-        if (grade == null) {
-            return false; // drawn before the grade was recorded — unprovable
-        }
-        return SigilsInks.byId(registries, grade).map(InkGrade::permanent).orElse(false);
+        return SigilsInks.isPermanent(registries, parchment.get(SigilsComponents.INK_GRADE.get()));
     }
 
     // ------------------------------------------------------------- presentation
