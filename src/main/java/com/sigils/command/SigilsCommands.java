@@ -18,16 +18,22 @@ import com.sigils.core.particle.ProfileLookup;
 import com.sigils.core.particle.SpellVisuals;
 import com.sigils.core.spell.CompiledSpell;
 import com.sigils.core.spell.ValidationResult;
-import com.sigils.item.InkCharge;
 import com.sigils.registry.*;
+import net.minecraft.ChatFormatting;
+import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.server.level.ServerLevel;
+
+import com.sigils.circuit.CircuitCompletion;
+import com.sigils.circuit.CircuitSite;
+import com.sigils.circuit.Circuits;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.core.Registry;
-import net.minecraft.core.component.DataComponentType;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.permissions.Permissions;
 import net.minecraft.world.phys.Vec3;
@@ -35,7 +41,6 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import com.mojang.brigadier.arguments.FloatArgumentType;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Supplier;
 
 import com.sigils.core.element.ElementalMixture;
 import com.sigils.core.reaction.PhenomenonResolver;
@@ -46,7 +51,6 @@ import com.sigils.registry.PenTierDefinition;
 import com.sigils.registry.SigilsInks;
 import com.sigils.registry.SigilsPens;
 
-import static com.sigils.registry.SigilsComponents.COMPONENTS;
 
 /**
  * Debug commands.
@@ -91,6 +95,12 @@ public final class SigilsCommands {
                                 .executes(SigilsCommands::checkDemoDraft))
                         .then(Commands.literal("pens")
                                 .executes(SigilsCommands::listPens))
+                        .then(Commands.literal("circuit")
+                                .executes(context -> circuit(context,
+                                        BlockPos.containing(context.getSource().getPosition())))
+                                .then(Commands.argument("pos", BlockPosArgument.blockPos())
+                                        .executes(context -> circuit(context,
+                                                BlockPosArgument.getBlockPos(context, "pos")))))
                         .then(Commands.literal("inks")
                                 .executes(SigilsCommands::listInks))
         );
@@ -336,6 +346,51 @@ public final class SigilsCommands {
         int bound = SigilsPens.table(source.registryAccess()).size();
         source.sendSuccess(() -> Component.literal(bound + " item(s) bound as pens"), false);
         return bound;
+    }
+
+    /**
+     * Evaluates every registered trigger at a position, as if a sigil were there.
+     *
+     * <p>No sigil is required and none is created. This is the whole point of
+     * having written the interface before the block: the triggers are testable
+     * against a live world a full part before anything can carry one.
+     */
+    private static int circuit(CommandContext<CommandSourceStack> context, BlockPos pos) {
+        CommandSourceStack source = context.getSource();
+        ServerLevel level = source.getLevel();
+
+        // Part A always tests a floor sigil. Part B's block supplies the real face.
+        CircuitSite site = new CircuitSite(level, pos, Direction.UP);
+
+        source.sendSuccess(() -> Component.literal(String.format(
+                        "Circuit at %d %d %d  face=%s  t=%d",
+                        pos.getX(), pos.getY(), pos.getZ(), site.face(), level.getGameTime()))
+                .withStyle(ChatFormatting.GOLD), false);
+
+        int closedCount = 0;
+        for (Identifier id : Circuits.ids()) {
+            CircuitCompletion completion = Circuits.get(id);
+            boolean closed = completion.isClosed(site);
+            if (closed) {
+                closedCount++;
+            }
+            int interval = completion.pollInterval();
+            String line = String.format("  %-20s %-7s poll=%s",
+                    id,
+                    closed ? "CLOSED" : "open",
+                    interval == 0 ? "on-update" : interval + "t"
+                            + (site.due(interval) ? " (due)" : ""));
+            source.sendSuccess(() -> Component.literal(line)
+                    .withStyle(closed ? ChatFormatting.GREEN : ChatFormatting.DARK_GRAY), false);
+        }
+
+        source.sendSuccess(() -> Component.literal(String.format(
+                        "  support=%s  front=%s",
+                        level.getBlockState(site.support()).getBlock().getName().getString(),
+                        level.getBlockState(site.front()).getBlock().getName().getString()))
+                .withStyle(ChatFormatting.DARK_GRAY), false);
+
+        return closedCount;
     }
 
     /** Lists every ink grade and the item it binds. */
