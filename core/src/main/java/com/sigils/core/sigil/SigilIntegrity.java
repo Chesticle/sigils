@@ -21,6 +21,18 @@ public record SigilIntegrity(float value) {
     /** At or below this, the sigil is inert — present, visible, and dead. */
     public static final float INERT_AT = 0.05f;
 
+    /** At or above this, the drawing is crisp enough to peel off and keep. */
+    public static final float INTACT_AT = 0.85f;
+
+    /**
+     * How many visible steps of wear there are.
+     *
+     * <p>Five states (0..4), not a float, because this is what the block state
+     * carries — and a block state property that changed on every drop of rain
+     * would be a packet and a chunk re-render on every drop of rain.
+     */
+    public static final int WEAR_STEPS = 4;
+
     /** One splash from a water bucket. Three of them finish the job. */
     public static final float WASH_BUCKET = 0.34f;
 
@@ -39,6 +51,31 @@ public record SigilIntegrity(float value) {
     /** True when the sigil can no longer carry a circuit. */
     public boolean inert() {
         return value <= INERT_AT;
+    }
+
+    /** True when the drawing is unspoiled — the band in which a sheet is recoverable. */
+    public boolean intact() {
+        return value >= INTACT_AT;
+    }
+
+    /**
+     * Which visible step of wear this is: 0 pristine, {@link #WEAR_STEPS} spent.
+     *
+     * <p>Inert always maps to the last step and nothing else ever does, so "dead"
+     * is a look you can recognise rather than "very faded, probably". That's why
+     * the live range is clamped to {@code WEAR_STEPS - 1} instead of being allowed
+     * to round down into it.
+     */
+    public int wearStep() {
+        if (inert()) {
+            return WEAR_STEPS;
+        }
+        return Math.clamp(WEAR_STEPS - Math.round(value * WEAR_STEPS), 0, WEAR_STEPS - 1);
+    }
+
+    /** What a given wear step means as a fraction — the renderer's inverse of {@link #wearStep()}. */
+    public static float remainingAt(int wearStep) {
+        return Math.clamp(1f - (float) wearStep / WEAR_STEPS, 0f, 1f);
     }
 
     /** Take {@code amount} off. Negative amounts do nothing rather than repairing. */
